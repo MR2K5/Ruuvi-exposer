@@ -45,72 +45,167 @@ private:
 };
 //
 
-// struct sysinfo_metric {
-//     using F = std::function<std::vector<ClientMetric>(struct sysinfo const&)>;
+struct sysinfo_metric {
+    using F = std::function<std::vector<ClientMetric>(struct sysinfo const&)>;
 
-//    sysinfo_metric(std::string const& name, std::string const& help, MetricType type,
-//                   std::vector<std::string> const& labels_, F const& f) {
-//        metricfamily.name = name;
-//        metricfamily.help = help;
-//        metricfamily.type = type;
-//        function          = f;
-//        labels            = labels_;
-//    }
+    MetricFamily get(struct sysinfo const& info) const {
+        auto metrics = function(info);
 
-//    MetricFamily get(struct sysinfo const& info) const {
-//        auto metrics = function(info);
-//        for (auto& m : metrics) { m.label.insert(m.label.cend(), labels.cbegin(), labels.cend());
-//        }
+        MetricFamily r = metricfamily;
+        r.metric       = std::move(metrics);
+        return r;
+    }
 
-//        MetricFamily r = metricfamily;
-//        r.metric       = std::move(metrics);
-//        return r;
-//    }
+    MetricFamily metricfamily;
+    F function;
+};
 
-//    MetricFamily metricfamily;
-//    F function;
-//    std::vector<ClientMetric::Label> labels;
-//};
+class sysinfo_builder {
+public:
+    explicit sysinfo_builder() { metric.metricfamily.type = MetricType::Gauge; }
 
-// class SysinfoCollector: public Collectable {
-//     using Label = ClientMetric::Label;
-//     using CMV   = std::vector<ClientMetric>;
+    sysinfo_builder& Name(std::string const& name) & {
+        metric.metricfamily.name = name;
+        return *this;
+    }
+    sysinfo_builder& Help(std::string const& s) & {
+        metric.metricfamily.help = s;
+        return *this;
+    }
+    sysinfo_builder& Type(MetricType t) & {
+        metric.metricfamily.type = t;
+        return *this;
+    }
+    sysinfo_builder& Callback(sysinfo_metric::F const& f) & {
+        metric.function = f;
+        return *this;
+    }
 
-// public:
-//     std::vector<MetricFamily> Collect() const override {
-//         std::vector<MetricFamily> collected;
-//         auto info = get_info();
+    sysinfo_builder&& Name(std::string const& name) && {
+        metric.metricfamily.name = name;
+        return std::move(*this);
+    }
+    sysinfo_builder&& Help(std::string const& s) && {
+        metric.metricfamily.help = s;
+        return std::move(*this);
+    }
+    sysinfo_builder&& Type(MetricType t) && {
+        metric.metricfamily.type = t;
+        return std::move(*this);
+    }
+    sysinfo_builder&& Callback(sysinfo_metric::F const& f) && {
+        metric.function = f;
+        return std::move(*this);
+    }
 
-//        for (auto& m : metrics) { m.get(info); }
-//        return collected;
-//    }
+    operator sysinfo_metric() && { return std::move(metric); }
 
-// private:
-//     static struct sysinfo get_info() {
-//         struct sysinfo info;
-//         int e = ::sysinfo(&info);
-//         if (e) { throw std::system_error(errno, std::generic_category(), "Failed to get
-//         sysinfo"); } return info;
-//     }
+private:
+    sysinfo_metric metric;
+};
 
-//    void populate_metrics() {
-//        metrics.push_back(sysinfo_metric("sysinfo_processes_total",
-//                                         "Total number of processes currently running",
-//                                         MetricType::Gauge, {}, [](struct sysinfo const& info) {
-//                                             ClientMetric m;
-//                                             m.gauge.value = info.procs;
-//                                             return std::vector{ m };
-//                                         }));
-//    }
+sysinfo_builder BuildSysinfo() {
+    return sysinfo_builder();
+}
 
-//    std::vector<sysinfo_metric> metrics;
-//};
+struct single_value_cb {
+    template<class F> single_value_cb(F&& f): f(std::forward<F>(f)) {}
+    std::function<double(struct sysinfo const&)> f;
+
+    std::vector<ClientMetric> operator()(struct sysinfo const& info) {
+        ClientMetric m;
+        m.gauge.value = f(info);
+        return std::vector{ m };
+    }
+};
+
+template<class F> single_value_cb multiply_by_memunit(F&& f) {
+    return single_value_cb([f = std::forward<F>(f)](struct sysinfo const& i) {
+        return static_cast<double>(std::invoke(f, i)) * i.mem_unit;
+    });
+}
+
+class SysinfoCollector: public Collectable {
+    using Label     = ClientMetric::Label;
+    using CMV       = std::vector<ClientMetric>;
+    using sysinfo_t = struct sysinfo;
+
+public:
+    SysinfoCollector() { populate_metrics(); }
+
+    SysinfoCollector(SysinfoCollector const&)            = delete;
+    SysinfoCollector& operator=(SysinfoCollector const&) = delete;
+
+    std::vector<MetricFamily> Collect() const override {
+        const auto info = get_info();
+        std::vector<MetricFamily> collected;
+        collected.reserve(metrics.size());
+
+        for (auto& m : metrics) { collected.push_back(m.get(info)); }
+        return collected;
+    }
+
+private:
+    static struct sysinfo get_info() {
+        struct sysinfo info;
+        int e = ::sysinfo(&info);
+        if (e) { throw std::system_error(errno, std::generic_category(), "Failed to getsysinfo"); }
+        return info;
+    }
+
+    void populate_metrics() {
+        metrics.push_back(BuildSysinfo()
+                              .Name("sysinfo_running_processes")
+                              .Help("Number of currently running processes")
+                              .Callback(single_value_cb(&sysinfo_t::procs)));
+        metrics.push_back(BuildSysinfo()
+                              .Name("sysinfo_uptime")
+                              .Help("Uptime since last reboot")
+                              .Callback(single_value_cb(&sysinfo_t::uptime)));
+        metrics.push_back(BuildSysinfo()
+                              .Name("sysinfo_memory_size_bytes")
+                              .Help("Total amount of RAM")
+                              .Callback(multiply_by_memunit(&sysinfo_t::totalram)));
+        metrics.push_back(BuildSysinfo()
+                              .Name("sysinfo_memory_free_bytes")
+                              .Help("Amount of free RAM")
+                              .Callback(multiply_by_memunit(&sysinfo_t::freeram)));
+        metrics.push_back(BuildSysinfo()
+                              .Name("sysinfo_memory_shared_bytes")
+                              .Help("Amount of shared RAM")
+                              .Callback(multiply_by_memunit(&sysinfo_t::sharedram)));
+        metrics.push_back(BuildSysinfo()
+                              .Name("sysinfo_memory_buffered_bytes")
+                              .Help("Amount of buffered RAM")
+                              .Callback(multiply_by_memunit(&sysinfo_t::bufferram)));
+        metrics.push_back(BuildSysinfo()
+                              .Name("sysinfo_swap_size_bytes")
+                              .Help("Total amount of swap space")
+                              .Callback(multiply_by_memunit(&sysinfo_t::totalswap)));
+        metrics.push_back(BuildSysinfo()
+                              .Name("sysinfo_swap_free_bytes")
+                              .Help("Amount of free swap space")
+                              .Callback(multiply_by_memunit(&sysinfo_t::freeswap)));
+        metrics.push_back(BuildSysinfo()
+                              .Name("sysinfo_high_memory_free_bytes")
+                              .Help("Amount of free high (userspace) memory")
+                              .Callback(multiply_by_memunit(&sysinfo_t::freehigh)));
+        metrics.push_back(BuildSysinfo()
+                              .Name("sysinfo_high_memory_size_bytes")
+                              .Help("Total amount of high (userspace) memory")
+                              .Callback(multiply_by_memunit(&sysinfo_t::totalhigh)));
+    }
+
+    std::vector<sysinfo_metric> metrics;
+};
 
 }  // namespace
 
 class RuuviExposer::Impl {
 public:
-    Impl(std::string const& addr): exposer(addr), registry(std::make_shared<Registry>()) {
+    Impl(std::string const& addr)
+        : exposer(addr), registry(std::make_shared<Registry>()),
+          sysinfo_collector(std::make_shared<SysinfoCollector>()) {
         collectors.push_back({ BuildGauge()
                                    .Name("ruuvi_temperature_celsius")
                                    .Help("Ruuvitag temperature in Celsius")
@@ -195,6 +290,7 @@ public:
                                   .Register(*registry);
 
         exposer.RegisterCollectable(registry);
+        exposer.RegisterCollectable(sysinfo_collector);
     }
 
     void update_data(ruuvi_data_format_5 const& new_data) {
@@ -214,6 +310,7 @@ private:
     std::mutex mtx;
 
     // Internal measurements
+    std::shared_ptr<SysinfoCollector> sysinfo_collector;
 };
 
 RuuviExposer::RuuviExposer(std::string const& addr): impl(std::make_unique<Impl>(addr)) {}

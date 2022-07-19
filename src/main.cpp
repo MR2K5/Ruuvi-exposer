@@ -39,8 +39,9 @@ int main() {
     std::thread runner([&rv]() { rv.start(); });
 
     std::string line;
-    std::this_thread::sleep_for(std::chrono::seconds(3));
-    //    while (std::cin.good() && std::getline(std::cin, line));
+    //    std::this_thread::sleep_for(std::chrono::seconds(10));
+    while (std::cin.good() && std::getline(std::cin, line))
+        ;
 
     rv.stop();
     runner.join();
