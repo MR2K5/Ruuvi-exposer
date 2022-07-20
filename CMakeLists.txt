@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.5)
+cmake_minimum_required(VERSION 3.18)
 
 project(ruuvitag LANGUAGES CXX)
 
@@ -10,8 +10,10 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 set(RUUVITAG_SANITIZE "" CACHE STRING "Enable a sanitizer")
 set_property(CACHE RUUVITAG_SANITIZE PROPERTY STRINGS "" "thread" "undefined")
 
+set(CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake)
+
 add_library(ruuvitag SHARED "")
-add_executable(Test "")
+add_executable(ruuvi_exposer "")
 
 add_library(common INTERFACE)
 
@@ -27,21 +29,30 @@ if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
     target_link_options(common INTERFACE)
 endif()
 
-target_compile_definitions(common INTERFACE GATTLIB_LOG_LEVEL=3)
+target_compile_definitions(common INTERFACE)
 
 target_link_libraries(ruuvitag PRIVATE common)
-target_link_libraries(Test PRIVATE common)
+target_link_libraries(ruuvi_exposer PRIVATE common)
 
-target_include_directories(ruuvitag PRIVATE /usr/local/include)
-target_include_directories(Test PRIVATE src)
+target_include_directories(ruuvitag PRIVATE ${PROJECT_SOURCE_DIR}/include/ruuvi)
+target_include_directories(ruuvi_exposer PRIVATE ${PROJECT_SOURCE_DIR}/include/ruuvi)
+target_include_directories(ruuvitag PUBLIC /usr/local/include ${PROJECT_SOURCE_DIR}/include)
 
 find_package(Threads REQUIRED)
 find_package(Python3 REQUIRED COMPONENTS Development)
+find_package(Gattlib REQUIRED MODULE)
 
-target_link_libraries(Test PUBLIC ruuvitag Threads::Threads gattlib Python3::Python)
+target_link_libraries(ruuvi_exposer PUBLIC ruuvitag Threads::Threads Python3::Python Gattlib::Gattlib)
 
 find_package(prometheus-cpp CONFIG REQUIRED)
-
-target_link_libraries(Test PRIVATE prometheus-cpp::pull Threads::Threads)
+target_link_libraries(ruuvi_exposer PRIVATE prometheus-cpp::pull Threads::Threads)
 
 add_subdirectory(src)
+add_subdirectory(include)
+
+set_target_properties(ruuvi_exposer PROPERTIES INSTALL_RPATH ${CMAKE_INSTALL_PREFIX}/lib/)
+
+install(TARGETS ruuvitag ruuvi_exposer
+    FILE_SET HEADERS DESTINATION include
+    LIBRARY DESTINATION lib
+    RUNTIME DESTINATION bin)

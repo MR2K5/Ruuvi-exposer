@@ -1,0 +1,11 @@
+[Unit]
+Description=Prometheus exposer for RuuviTag
+
+[Service]
+Type=simple
+ExecStart=/opt/ruuvi-prometheus-exposer/bin/ruuvi-exposer
+WorkingDirectory=/opt/ruuvi-prometheus-exposer/
+User=pi
+
+[Install]
+WantedBy=multi-user.target
