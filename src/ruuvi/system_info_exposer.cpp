@@ -4,7 +4,6 @@
 #include <cassert>
 #include <fstream>
 #include <functional>
-#include <iostream>
 #include <list>
 #include <map>
 #include <sstream>
@@ -146,11 +145,6 @@ system_info get_system_info() {
 using cb_func = std::vector<ClientMetric>(system_info const&);
 
 }  // namespace
-
-unsigned long sys_info::test() {
-    auto x = read_meminfo();
-    return x.has_errors;
-}
 
 class raw_gauge_builder;
 

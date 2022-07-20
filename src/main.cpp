@@ -9,8 +9,6 @@
 #include <future>
 #include <thread>
 
-#include <gattlib.h>
-
 class Ruuvitag {
 public:
     Ruuvitag()
@@ -23,10 +21,14 @@ public:
     void stop() { listener.stop(); }
 
     void ble_callback(ble::BlePacket const& p) {
+#ifndef NDBEUG
         std::cout << p << "\n";
+#endif
         if (p.manufacturer_id == 0x0499) {
             auto data = ble::convert_data_format_5(p);
+#ifndef NDEBUG
             std::cout << data << "\n\n" << std::flush;
+#endif
             exposer.update(data);
         }
     }
@@ -56,11 +58,14 @@ int main() {
 
     std::thread stopper([&rv]() {
         stop_all.test_and_set();
-        while (stop_all.test_and_set()) { std::this_thread::yield(); }
-        std::cerr << "Stopping\n";
+        while (stop_all.test_and_set()) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(500));
+        }
+        std::cerr << "Stopping...\n";
         rv.stop();
     });
 
+    std::signal(SIGTERM, stop_handler);
     std::signal(SIGINT, stop_handler);
 
     stopper.join();

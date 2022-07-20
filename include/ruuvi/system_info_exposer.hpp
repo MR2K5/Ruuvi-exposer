@@ -19,11 +19,10 @@ public:
 
     SystemInfo(init);
     ~SystemInfo();
+
 private:
     class Impl;
     std::unique_ptr<Impl> impl;
 };
-
-unsigned long test();
 
 }  // namespace sys_info

@@ -1,10 +1,9 @@
+#include "ruuvi.hpp"
+
 #include <cassert>
 #include <cmath>
 #include <future>
 #include <iomanip>
-#include <iostream>
-
-#include "ruuvi.hpp"
 
 #include <gattlib.h>
 

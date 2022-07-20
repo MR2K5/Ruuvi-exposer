@@ -2,7 +2,6 @@
 
 #include "system_info_exposer.hpp"
 
-#include <future>
 #include <prometheus/collectable.h>
 #include <prometheus/counter.h>
 #include <prometheus/exposer.h>
@@ -13,7 +12,7 @@
 #include <atomic>
 #include <cerrno>
 #include <cstring>
-#include <iostream>
+#include <future>
 #include <map>
 #include <memory>
 #include <mutex>
