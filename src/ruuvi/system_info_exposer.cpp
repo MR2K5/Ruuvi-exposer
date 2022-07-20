@@ -43,6 +43,10 @@ struct system_info {
     // From sysinfo()
     ul Processes;
     ul MemShared;
+
+    // From getloadavg
+    double Loads[3];
+
     bool has_errors;
 };
 
@@ -79,8 +83,8 @@ auto parse_lines(std::istream& is) {
 }
 
 system_info read_meminfo() {
-    system_info r;
-    r.has_errors = false;
+    system_info r = {};
+    r.has_errors  = false;
     std::ifstream file(SystemInfo::meminfo_location);
 
     auto lines = parse_lines(file);
@@ -132,6 +136,10 @@ system_info get_system_info() {
         info.Processes = sinfo.procs;
         info.MemShared = sinfo.sharedram * sinfo.mem_unit;
     }
+
+    int written = getloadavg(info.Loads, 3);
+    if (written != 3) info.has_errors = true;
+
     return info;
 }
 
@@ -302,6 +310,12 @@ private:
                              .Help("Amount of shared memory")
                              .Type(MetricType::Gauge)
                              .Callback(to_double_single(&system_info::MemShared)));
+        gauges.push_back(
+            BuildRawGauge()
+                .Name("sysinfo_avg_load")
+                .Help("1 minute cpu load average")
+                .Type(MetricType::Gauge)
+                .Callback(to_double_single([](system_info const& i) { return i.Loads[0]; })));
     }
 };
 
