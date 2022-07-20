@@ -22,6 +22,7 @@ namespace {
 
 struct system_info {
     using ul = unsigned long;
+    // From /proc/meminfo
     ul MemTotal;
     ul MemFree;
     ul MemAvailable;
@@ -39,7 +40,9 @@ struct system_info {
     ul Dirty;
     ul Writeback;
 
+    // From sysinfo()
     ul Processes;
+    ul MemShared;
     bool has_errors;
 };
 
@@ -127,6 +130,7 @@ system_info get_system_info() {
         info.has_errors = true;
     } else {
         info.Processes = sinfo.procs;
+        info.MemShared = sinfo.sharedram * sinfo.mem_unit;
     }
     return info;
 }
@@ -293,6 +297,11 @@ private:
                              .Help("Amount of running processes")
                              .Type(MetricType::Gauge)
                              .Callback(to_double_single(&system_info::Processes)));
+        gauges.push_back(BuildRawGauge()
+                             .Name("sysinfo_memory_shared_bytes")
+                             .Help("Amount of shared memory")
+                             .Type(MetricType::Gauge)
+                             .Callback(to_double_single(&system_info::MemShared)));
     }
 };
 
