@@ -3,8 +3,8 @@ Description=Prometheus exposer for RuuviTag
 
 [Service]
 Type=simple
-ExecStart=/opt/ruuvi-prometheus-exposer/bin/ruuvi-exposer
-WorkingDirectory=/opt/ruuvi-prometheus-exposer/
+ExecStart=/opt/ruuvi/bin/ruuvi_exposer
+WorkingDirectory=/opt/ruuvi
 User=pi
 
 [Install]
