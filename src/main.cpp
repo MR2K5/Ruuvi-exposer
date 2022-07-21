@@ -1,4 +1,3 @@
-#include "ruuvi/system_info_exposer.hpp"
 #include <ruuvi/ruuvi.hpp>
 #include <ruuvi/ruuvi_prometheus_exposer.hpp>
 

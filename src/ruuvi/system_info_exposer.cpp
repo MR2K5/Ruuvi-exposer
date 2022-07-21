@@ -62,6 +62,10 @@ struct system_info {
     double IrqTime;
     double VmTime;
 
+    // From /proc/net/netstat
+    ul InOctets;
+    ul OutOctets;
+
     bool has_errors;
     std::string errors;
     static std::atomic_llong errors_count;
@@ -70,17 +74,18 @@ struct system_info {
     static std::unique_ptr<const system_info> create();
 
 private:
+    bool test_file(std::string const& name) {
+        try {
+            std::ifstream ifs(name);
+            return ifs.good();
+        } catch (std::exception const& e) {
+            log(e.what());
+            return false;
+        }
+    }
     std::optional<std::ifstream> open_file(std::string const& name);
     std::optional<std::ifstream> open_stat_file() {
-        static const bool has_file = []() {
-            try {
-                std::ifstream ifs(SystemInfo::stat_location);
-                return ifs.good();
-            } catch (std::exception const& e) {
-                log(e.what());
-                return false;
-            }
-        }();
+        static const bool has_file = test_file(SystemInfo::stat_location);
         if (!has_file) {
             error("File check for ", SystemInfo::stat_location, " Failed previously");
             return std::nullopt;
@@ -88,20 +93,20 @@ private:
         return open_file(SystemInfo::stat_location);
     }
     std::optional<std::ifstream> open_meminfo_file() {
-        static const bool has_file = []() {
-            try {
-                std::ifstream ifs(SystemInfo::meminfo_location);
-                return ifs.good();
-            } catch (std::exception const& e) {
-                log(e.what());
-                return false;
-            }
-        }();
+        static const bool has_file = test_file(SystemInfo::meminfo_location);
         if (!has_file) {
             error("File check for ", SystemInfo::meminfo_location, " Failed previously");
             return std::nullopt;
         }
         return open_file(SystemInfo::meminfo_location);
+    }
+    std::optional<std::ifstream> open_netstat_file() {
+        static const bool has_file = test_file(SystemInfo::netstat_location);
+        if (!has_file) {
+            error("File check for ", SystemInfo::netstat_location, " Failed previously");
+            return std::nullopt;
+        }
+        return open_file(SystemInfo::netstat_location);
     }
 
     double get_clock_hz();
@@ -110,6 +115,7 @@ private:
 
     void read_meminfo();
     void read_stat();
+    void read_netstat();
     void get_sysinfo();
     void get_loadavg();
 
@@ -173,6 +179,7 @@ std::unique_ptr<const system_info> system_info::create() {
         info->read_stat();
         info->get_sysinfo();
         info->get_loadavg();
+        info->read_netstat();
     } catch (std::exception const& e) {
         info->error("Exception in system_info::create(): ", e.what());
     } catch (...) { info->error("Unknown exception in system_info::create()"); }
@@ -249,6 +256,50 @@ void system_info::read_stat() {
         VmTime     = (steal + guest + guest_nice) * user_hz;
     } else {
         error("Error while reading ", SystemInfo::stat_location);
+    }
+}
+
+void system_info::read_netstat() {
+    auto file = open_netstat_file();
+    if (file.has_value() && file->good()) {
+
+        std::vector<std::string> lines;
+        lines.reserve(20);
+        std::string l;
+        while (std::getline(*file, l)) lines.push_back(l);
+
+        auto pred = [](std::string const& s) {
+            if (s.find("IpExt") != s.npos) { return true; }
+            return false;
+        };
+
+        auto it = std::find_if(lines.begin(), lines.end(), pred);
+        if (it == lines.end()) {
+            error("Couldn't  find IpExt in ", SystemInfo::netstat_location);
+            return;
+        }
+        // Find next IpExt row after labels
+        it = std::find_if(it + 1, lines.end(), pred);
+        if (it != lines.end()) {
+            std::string id;
+            unsigned long u;  // unused
+            unsigned long in_octets  = 0;
+            unsigned long out_octets = 0;
+            unsigned long in_mcast   = 0;
+            unsigned long out_mcast  = 0;
+
+            std::stringstream ss(*it);
+            ss >> id >> u >> u >> u >> u >> u >> u >> in_octets >> out_octets >> in_mcast
+                >> out_mcast;
+
+            InOctets  = in_octets + in_mcast;
+            OutOctets = out_octets + out_mcast;
+
+            if (!ss.good() || id != "IpExt:") { error("Error while reading IpExt values"); }
+
+        } else {
+            error("Couldn't find second IpExt row in ", SystemInfo::netstat_location);
+        }
     }
 }
 
@@ -395,6 +446,7 @@ private:
     std::vector<raw_gauge> gauges;
 
     void create_gauges() {
+        // ------ memstat --------
         gauges.push_back(BuildRawGauge()
                              .Name("sysinfo_memory_size_bytes")
                              .Help("Total memory available")
@@ -449,6 +501,9 @@ private:
                              .Help("Amount of unused swap memory")
                              .Type(MetricType::Gauge)
                              .Callback(to_double_single(&system_info::SwapFree)));
+
+        // ------ sysinfo() --------
+
         gauges.push_back(BuildRawGauge()
                              .Name("sysinfo_processes")
                              .Help("Amount of running processes")
@@ -459,12 +514,18 @@ private:
                              .Help("Amount of shared memory")
                              .Type(MetricType::Gauge)
                              .Callback(to_double_single(&system_info::MemShared)));
+
+        // ------ loadavg() --------
+
         gauges.push_back(
             BuildRawGauge()
                 .Name("sysinfo_avg_load")
                 .Help("1 minute cpu load average")
                 .Type(MetricType::Gauge)
                 .Callback(to_double_single([](system_info const& i) { return i.Loads[0]; })));
+
+        // ------ /proc/stat --------
+
         gauges.push_back(BuildRawGauge()
                              .Name("sysinfo_cpu_user_seconds")
                              .Help("Time spent in user mode since boot")
@@ -495,6 +556,19 @@ private:
                              .Help("Number of scrapes containing errors")
                              .Type(MetricType::Gauge)
                              .Callback(to_double_single(&system_info::get_errors_count)));
+
+        // ------ /proc/net/netsat --------
+
+        gauges.push_back(BuildRawGauge()
+                             .Name("sysinfo_network_in_bytes")
+                             .Help("Count of reveived octets (bytes) since boot")
+                             .Type(MetricType::Gauge)
+                             .Callback(to_double_single(&system_info::InOctets)));
+        gauges.push_back(BuildRawGauge()
+                             .Name("sysinfo_network_out_bytes")
+                             .Help("Count of sent octets (bytes) since boot")
+                             .Type(MetricType::Gauge)
+                             .Callback(to_double_single(&system_info::OutOctets)));
     }
 };
 
