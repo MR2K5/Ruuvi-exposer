@@ -269,9 +269,9 @@ void system_info::get_loadavg() {
 }
 
 double system_info::get_unit(const std::string& u) {
-    if (u == "kB") return 1024;
+    if (u == "kB") return 1000;
     if (u == "B" || u == "") return 1;
-    if (u == "MB") return 1'048'576;
+    if (u == "MB") return 1'000'000;
     error("Unknown unit in meminfo file: ", u);
     return 1;
 }
