@@ -1,14 +1,24 @@
 #include "system_info_exposer.hpp"
 
 #include <algorithm>
+#include <atomic>
 #include <cassert>
+#include <cstring>
 #include <fstream>
 #include <functional>
+#include <iostream>
 #include <list>
 #include <map>
+#include <optional>
 #include <sstream>
 
+#include <prometheus/family.h>
+#include <prometheus/gauge.h>
+
 #include <sys/sysinfo.h>
+#include <unistd.h>
+
+#include "logging.hpp"
 
 using namespace sys_info;
 using namespace prometheus;
@@ -46,22 +56,227 @@ struct system_info {
     // From getloadavg
     double Loads[3];
 
+    // From /proc/stat
+    double UserTime;
+    double SystemTime;
+    double IrqTime;
+    double VmTime;
+
     bool has_errors;
+    std::string errors;
+    static std::atomic_llong errors_count;
+    double get_errors_count() const { return errors_count; }
+
+    static std::unique_ptr<const system_info> create();
+
+private:
+    std::optional<std::ifstream> open_file(std::string const& name);
+    std::optional<std::ifstream> open_stat_file() {
+        static const bool has_file = []() {
+            try {
+                std::ifstream ifs(SystemInfo::stat_location);
+                return ifs.good();
+            } catch (std::exception const& e) {
+                log(e.what());
+                return false;
+            }
+        }();
+        if (!has_file) {
+            error("File check for ", SystemInfo::stat_location, " Failed previously");
+            return std::nullopt;
+        }
+        return open_file(SystemInfo::stat_location);
+    }
+    std::optional<std::ifstream> open_meminfo_file() {
+        static const bool has_file = []() {
+            try {
+                std::ifstream ifs(SystemInfo::meminfo_location);
+                return ifs.good();
+            } catch (std::exception const& e) {
+                log(e.what());
+                return false;
+            }
+        }();
+        if (!has_file) {
+            error("File check for ", SystemInfo::meminfo_location, " Failed previously");
+            return std::nullopt;
+        }
+        return open_file(SystemInfo::meminfo_location);
+    }
+
+    double get_clock_hz();
+
+    system_info() = default;
+
+    void read_meminfo();
+    void read_stat();
+    void get_sysinfo();
+    void get_loadavg();
+
+    double get_unit(std::string const& u);
+
+    struct meminfo_line {
+        std::string name;
+        unsigned long value;
+    };
+    std::list<meminfo_line> parse_lines(std::istream& is);
+
+    template<class... As> void error(As&&... as) {
+        // Increment only first time
+        if (has_errors == false) {
+            has_errors = true;
+            errors_count += 1;
+        }
+
+        if constexpr (sizeof...(As) >= 1) {
+            std::stringstream ss;
+            (ss << ... << as);
+            errors += "\n" + ss.str();
+            log(ss.rdbuf());
+        }
+    }
 };
 
-double get_unit(std::string const& u) {
+std::atomic_llong system_info::errors_count = 0;
+
+std::optional<std::ifstream> system_info::open_file(std::string const& name) {
+    std::optional<std::ifstream> opt(std::nullopt);
+
+    try {
+        opt.emplace(std::ifstream(name));
+        if (!opt.has_value() || !opt->good()) {
+            error("Failed to open ", name);
+            opt.reset();
+        }
+    } catch (std::exception& e) { error("Exception while opening ", name, ": ", e.what()); }
+
+    return opt;
+}
+
+double system_info::get_clock_hz() {
+    static const double v = []() {
+        long ticks_per_s = sysconf(_SC_CLK_TCK);
+        if (ticks_per_s == -1) {
+            log("Failed to read _SC_CLK_TCK: ", std::strerror(errno));
+            return -1.0;
+        }
+        return 1.0 / ticks_per_s;
+    }();
+    if (v < 0) error();
+    return v;
+}
+
+std::unique_ptr<const system_info> system_info::create() {
+    std::unique_ptr<system_info> info(new system_info{});
+    try {
+        info->read_meminfo();
+        info->read_stat();
+        info->get_sysinfo();
+        info->get_loadavg();
+    } catch (std::exception const& e) {
+        info->error("Exception in system_info::create(): ", e.what());
+    } catch (...) { info->error("Unknown exception in system_info::create()"); }
+
+    return info;
+}
+
+void system_info::read_meminfo() {
+    auto file = open_meminfo_file();
+    if (file.has_value()) {
+
+        auto lines = parse_lines(*file);
+        file->close();
+
+        std::string_view to_find;
+        typename decltype(lines)::iterator it;
+        auto predicate = [&to_find](meminfo_line const& v) { return v.name == to_find; };
+
+#define MEMINFO_READ(value_name)                                                            \
+    to_find = #value_name;                                                                  \
+    it      = std::find_if(lines.begin(), lines.end(), predicate);                          \
+    if (it != lines.end()) {                                                                \
+        value_name = (*it).value;                                                           \
+        lines.erase(it);                                                                    \
+    } else {                                                                                \
+        error("Value named ", #value_name, " not found in ", SystemInfo::meminfo_location); \
+    }
+
+        MEMINFO_READ(MemTotal);
+        MEMINFO_READ(MemFree);
+        MEMINFO_READ(MemAvailable);
+        MEMINFO_READ(Buffers);
+        MEMINFO_READ(Cached);
+        MEMINFO_READ(SwapCached);
+        MEMINFO_READ(Active);
+        MEMINFO_READ(Inactive);
+        //    MEMINFO_READ(HighTotal);
+        //    MEMINFO_READ(HighFree);
+        //    MEMINFO_READ(LowTotal);
+        //    MEMINFO_READ(LowFree);
+        MEMINFO_READ(SwapTotal);
+        MEMINFO_READ(SwapFree);
+        MEMINFO_READ(Dirty);
+        MEMINFO_READ(Writeback);
+
+#undef MEMINFO_READ
+    } else {
+        error("Error while reading ", SystemInfo::meminfo_location);
+    }
+}
+
+void system_info::read_stat() {
+    auto file            = open_stat_file();
+    const double user_hz = get_clock_hz();
+
+    if (file.has_value() && file->good() && user_hz > 0) {
+        std::string id;
+        long user       = 0;
+        long nice       = 0;
+        long system     = 0;
+        long idle       = 0;
+        long iowait     = 0;
+        long irq        = 0;
+        long softirq    = 0;
+        long steal      = 0;
+        long guest      = 0;
+        long guest_nice = 0;
+        *file >> id >> user >> nice >> system >> idle >> iowait >> irq >> softirq >> steal >> guest
+            >> guest_nice;
+        if (!file->good() || id != "cpu") error("Error while parsing ", SystemInfo::stat_location);
+        UserTime   = (user + nice) * user_hz;
+        SystemTime = system * user_hz;
+        IrqTime    = (irq + softirq) * user_hz;
+        VmTime     = (steal + guest + guest_nice) * user_hz;
+    } else {
+        error("Error while reading ", SystemInfo::stat_location);
+    }
+}
+
+void system_info::get_sysinfo() {
+    struct sysinfo si {};
+    int e = sysinfo(&si);
+    if (e) {
+        error("Failed to get sysinfo(): ", std::strerror(errno));
+    } else {
+        Processes = si.procs;
+        MemShared = si.sharedram * si.mem_unit;
+    }
+}
+
+void system_info::get_loadavg() {
+    int written = getloadavg(Loads, 3);
+    if (written != 3) { error("Failed to call getloadavg(): returned ", written); }
+}
+
+double system_info::get_unit(const std::string& u) {
     if (u == "kB") return 1024;
     if (u == "B" || u == "") return 1;
     if (u == "MB") return 1'048'576;
-    throw std::runtime_error("/proc/meminfo: unknown unit: " + u);
+    error("Unknown unit in meminfo file: ", u);
+    return 1;
 }
 
-struct meminfo_line {
-    std::string name;
-    unsigned long value;
-};
-
-auto parse_lines(std::istream& is) {
+std::list<system_info::meminfo_line> system_info::parse_lines(std::istream& is) {
     std::list<meminfo_line> lines;
 
     std::string line;
@@ -79,67 +294,6 @@ auto parse_lines(std::istream& is) {
     }
 
     return lines;
-}
-
-system_info read_meminfo() {
-    system_info r = {};
-    r.has_errors  = false;
-    std::ifstream file(SystemInfo::meminfo_location);
-
-    auto lines = parse_lines(file);
-    file.close();
-
-    std::string_view to_find;
-    typename decltype(lines)::iterator it;
-    auto predicate = [&to_find](meminfo_line const& v) { return v.name == to_find; };
-
-#define MEMINFO_READ(value_name)                                   \
-    to_find = #value_name;                                         \
-    it      = std::find_if(lines.begin(), lines.end(), predicate); \
-    if (it != lines.end()) {                                       \
-        r.value_name = (*it).value;                                \
-        lines.erase(it);                                           \
-    } else {                                                       \
-        r.has_errors = true;                                       \
-    }
-
-    MEMINFO_READ(MemTotal);
-    MEMINFO_READ(MemFree);
-    MEMINFO_READ(MemAvailable);
-    MEMINFO_READ(Buffers);
-    MEMINFO_READ(Cached);
-    MEMINFO_READ(SwapCached);
-    MEMINFO_READ(Active);
-    MEMINFO_READ(Inactive);
-    //    MEMINFO_READ(HighTotal);
-    //    MEMINFO_READ(HighFree);
-    //    MEMINFO_READ(LowTotal);
-    //    MEMINFO_READ(LowFree);
-    MEMINFO_READ(SwapTotal);
-    MEMINFO_READ(SwapFree);
-    MEMINFO_READ(Dirty);
-    MEMINFO_READ(Writeback);
-
-#undef MEMINFO_READ
-
-    return r;
-}
-
-system_info get_system_info() {
-    system_info info = read_meminfo();
-    struct sysinfo sinfo;
-    int e = sysinfo(&sinfo);
-    if (e) {
-        info.has_errors = true;
-    } else {
-        info.Processes = sinfo.procs;
-        info.MemShared = sinfo.sharedram * sinfo.mem_unit;
-    }
-
-    int written = getloadavg(info.Loads, 3);
-    if (written != 3) info.has_errors = true;
-
-    return info;
 }
 
 using cb_func = std::vector<ClientMetric>(system_info const&);
@@ -228,11 +382,12 @@ public:
     Impl() { create_gauges(); }
 
     std::vector<MetricFamily> Collect() const {
-        auto info = get_system_info();
+        auto info = system_info::create();
 
         std::vector<MetricFamily> metrics;
         metrics.reserve(gauges.size());
-        for (auto& g : gauges) { metrics.push_back(g.Collect(info)); }
+
+        for (auto& g : gauges) { metrics.push_back(g.Collect(*info)); }
         return metrics;
     }
 
@@ -310,6 +465,36 @@ private:
                 .Help("1 minute cpu load average")
                 .Type(MetricType::Gauge)
                 .Callback(to_double_single([](system_info const& i) { return i.Loads[0]; })));
+        gauges.push_back(BuildRawGauge()
+                             .Name("sysinfo_cpu_user_seconds")
+                             .Help("Time spent in user mode since boot")
+                             .Type(MetricType::Gauge)
+                             .Callback(to_double_single(&system_info::UserTime)));
+        gauges.push_back(BuildRawGauge()
+                             .Name("sysinfo_cpu_system_seconds")
+                             .Help("Time spent in system mode since boot")
+                             .Type(MetricType::Gauge)
+                             .Callback(to_double_single(&system_info::SystemTime)));
+        gauges.push_back(BuildRawGauge()
+                             .Name("sysinfo_cpu_irq_seconds")
+                             .Help("Time spent servicing interrupts since boot")
+                             .Type(MetricType::Gauge)
+                             .Callback(to_double_single(&system_info::IrqTime)));
+        gauges.push_back(BuildRawGauge()
+                             .Name("sysinfo_cpu_vm_seconds")
+                             .Help("Time spent in virtual machines since boot")
+                             .Type(MetricType::Gauge)
+                             .Callback(to_double_single(&system_info::VmTime)));
+        gauges.push_back(BuildRawGauge()
+                             .Name("sysinfo_cpu_vm_seconds")
+                             .Help("Time spent in virtual machines since boot")
+                             .Type(MetricType::Gauge)
+                             .Callback(to_double_single(&system_info::VmTime)));
+        gauges.push_back(BuildRawGauge()
+                             .Name("sysinfo_errors_count")
+                             .Help("Number of scrapes containing errors")
+                             .Type(MetricType::Gauge)
+                             .Callback(to_double_single(&system_info::get_errors_count)));
     }
 };
 
