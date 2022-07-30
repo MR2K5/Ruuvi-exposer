@@ -25,6 +25,8 @@ struct BlePacket {
 class gattlib_error: public std::runtime_error {
 public:
     gattlib_error(int err);
+    gattlib_error(gattlib_error const&)  = delete;
+    void operator=(gattlib_error const&) = delete;
 };
 
 using listener_callback = void(BlePacket const&);
@@ -42,7 +44,13 @@ private:
     const std::unique_ptr<Impl> impl;
 };
 
+std::ostream& operator<<(std::ostream& os, ble::BlePacket const& p);
+
+}  // namespace ble
+
 // -------------------------------------------------------------------------
+
+namespace ruuvi {
 
 struct ruuvi_data_format_5 {
     static constexpr auto nan = std::numeric_limits<float>::quiet_NaN();
@@ -63,8 +71,7 @@ struct ruuvi_data_format_5 {
 };
 
 std::ostream& operator<<(std::ostream& os, ruuvi_data_format_5 const& data);
-std::ostream& operator<<(std::ostream& os, BlePacket const& p);
 
-ruuvi_data_format_5 convert_data_format_5(BlePacket const& p, bool throw_on_error = false);
+ruuvi_data_format_5 convert_data_format_5(ble::BlePacket const& p, bool throw_on_error = false);
 
-}  // namespace ble
+}  // namespace ruuvi

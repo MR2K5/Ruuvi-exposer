@@ -4,7 +4,7 @@
 
 #include <memory>
 
-namespace ble {
+namespace ruuvi {
 
 /**
  * @brief The RuuviExposer class
@@ -26,4 +26,4 @@ private:
     std::unique_ptr<Impl> impl;
 };
 
-}  // namespace ble
+}  // namespace ruuvi

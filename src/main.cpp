@@ -24,7 +24,7 @@ public:
         std::cout << p << "\n";
 #endif
         if (p.manufacturer_id == 0x0499) {
-            auto data = ble::convert_data_format_5(p);
+            auto data = ruuvi::convert_data_format_5(p);
 #ifndef NDEBUG
             std::cout << data << "\n\n" << std::flush;
 #endif
@@ -34,7 +34,7 @@ public:
 
 private:
     ble::BleListener listener;
-    ble::RuuviExposer exposer;
+    ruuvi::RuuviExposer exposer;
 };
 
 std::atomic_flag stop_all = ATOMIC_FLAG_INIT;

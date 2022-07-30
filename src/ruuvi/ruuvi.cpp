@@ -8,6 +8,7 @@
 #include <gattlib.h>
 
 using namespace ble;
+using namespace ruuvi;
 
 namespace {
 
@@ -131,7 +132,7 @@ float ruuvi_data_format_5::acceleration_total() const {
     return std::hypot(acceleration[0], acceleration[1], acceleration[2]);
 }
 
-ruuvi_data_format_5 ble::convert_data_format_5(BlePacket const& p, bool throw_on_error) {
+ruuvi_data_format_5 ruuvi::convert_data_format_5(BlePacket const& p, bool throw_on_error) {
     ruuvi_data_format_5 result;
     auto* data = p.manufacturer_data;
 
@@ -233,7 +234,7 @@ ruuvi_data_format_5 ble::convert_data_format_5(BlePacket const& p, bool throw_on
     return result;
 }
 
-std::ostream& ble::operator<<(std::ostream& os, const ruuvi_data_format_5& data) {
+std::ostream& ruuvi::operator<<(std::ostream& os, const ruuvi_data_format_5& data) {
     os << "Data from MAC " << data.mac << "\n";
     os << "Ruuvi data format: " << 5;
     os << "\nTemperature: " << data.temperature;

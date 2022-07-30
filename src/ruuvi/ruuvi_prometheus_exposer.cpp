@@ -1,14 +1,5 @@
 #include "ruuvi_prometheus_exposer.hpp"
 
-#include "system_info_exposer.hpp"
-
-#include <prometheus/collectable.h>
-#include <prometheus/counter.h>
-#include <prometheus/exposer.h>
-#include <prometheus/family.h>
-#include <prometheus/gauge.h>
-#include <prometheus/registry.h>
-
 #include <atomic>
 #include <cerrno>
 #include <cstring>
@@ -18,11 +9,20 @@
 #include <mutex>
 #include <thread>
 
+#include <prometheus/collectable.h>
+#include <prometheus/counter.h>
+#include <prometheus/exposer.h>
+#include <prometheus/family.h>
+#include <prometheus/gauge.h>
+#include <prometheus/registry.h>
+
+#include "system_info_exposer.hpp"
+
 extern "C" {
 #include <sys/sysinfo.h>
 }
 
-using namespace ble;
+using namespace ruuvi;
 using namespace prometheus;
 
 namespace {
