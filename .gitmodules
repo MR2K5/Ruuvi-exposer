@@ -1,0 +1,3 @@
+[submodule "ext/prometheus-cpp"]
+	path = ext/prometheus-cpp
+	url = https://github.com/jupp0r/prometheus-cpp.git

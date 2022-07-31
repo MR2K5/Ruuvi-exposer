@@ -40,12 +40,20 @@ target_include_directories(ruuvitag PUBLIC /usr/local/include ${PROJECT_SOURCE_D
 
 find_package(Threads REQUIRED)
 find_package(Python3 REQUIRED COMPONENTS Development)
+
+target_link_libraries(ruuvi_exposer PUBLIC ruuvitag Threads::Threads Python3::Python)
+
+#find_package(prometheus-cpp CONFIG REQUIRED)
+#target_link_libraries(ruuvi_exposer PRIVATE prometheus-cpp::pull Threads::Threads)
+add_subdirectory(ext/prometheus-cpp)
+target_link_libraries(ruuvi_exposer PRIVATE prometheus-cpp::pull)
+
+#find_package(Gattlib REQUIRED MODULE)
+#set(GATTLIB_BUILD_EXAMPLES CACHE "" OFF)
+#add_subdirectory(ext/gattlib)
 find_package(Gattlib REQUIRED MODULE)
+target_link_libraries(ruuvi_exposer PRIVATE Gattlib::Gattlib)
 
-target_link_libraries(ruuvi_exposer PUBLIC ruuvitag Threads::Threads Python3::Python Gattlib::Gattlib)
-
-find_package(prometheus-cpp CONFIG REQUIRED)
-target_link_libraries(ruuvi_exposer PRIVATE prometheus-cpp::pull Threads::Threads)
 
 add_subdirectory(src)
 add_subdirectory(include)
