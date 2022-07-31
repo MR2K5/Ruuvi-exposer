@@ -1,4 +1,5 @@
 #include "ruuvi_prometheus_exposer.hpp"
+#include <iostream>
 
 #include <atomic>
 #include <cerrno>
@@ -50,8 +51,9 @@ private:
 class RuuviExposer::Impl {
 public:
     Impl(std::string const& addr)
-        : exposer(addr), registry(std::make_shared<Registry>()),
+        : registry(std::make_shared<Registry>()),
           sysinfo_collector(sys_info::SystemInfo::create()) {
+
         collectors.push_back({ BuildGauge()
                                    .Name("ruuvi_temperature_celsius")
                                    .Help("Ruuvitag temperature in Celsius")
@@ -111,7 +113,7 @@ public:
 
         collectors.push_back({ BuildGauge()
                                    .Name("ruuvi_measurement_count")
-                                   .Help("Ruuvitag packet measurement sequence number [0-65335]")
+                                   .Help("Ruuvitag packet measurement sequence number[0-65335]")
                                    .Register(*registry),
                                &ruuvi_data_format_5::measurement_sequence });
 
@@ -135,8 +137,9 @@ public:
                                   .Help("Total count of received measurements")
                                   .Register(*registry);
 
-        exposer.RegisterCollectable(registry);
-        exposer.RegisterCollectable(sysinfo_collector);
+        exposer = std::make_unique<Exposer>(addr);
+        exposer->RegisterCollectable(registry);
+        exposer->RegisterCollectable(sysinfo_collector);
     }
 
     void update_data(ruuvi_data_format_5 const& new_data) {
@@ -148,7 +151,7 @@ public:
     }
 
 private:
-    Exposer exposer;
+    std::unique_ptr<Exposer> exposer;
     const std::shared_ptr<Registry> registry;
     std::vector<MetricCollector> collectors;
     Family<Counter>* errors_counter;
@@ -165,4 +168,12 @@ RuuviExposer::~RuuviExposer() = default;
 
 void RuuviExposer::update(ruuvi_data_format_5 const& data) {
     impl->update_data(data);
+}
+
+void D::operator()(RuuviExposer::Impl* p) {
+    delete p;
+}
+
+std::unique_ptr<RuuviExposer::Impl, D> ruuvi::D::test() {
+    return std::unique_ptr<RuuviExposer::Impl, D>(new RuuviExposer::Impl("0.0.0.0:9106"), D());
 }

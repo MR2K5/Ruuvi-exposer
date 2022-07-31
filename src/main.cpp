@@ -1,3 +1,7 @@
+#include "prometheus/counter.h"
+#include "prometheus/exposer.h"
+#include "prometheus/registry.h"
+
 #include <ruuvi/ruuvi.hpp>
 #include <ruuvi/ruuvi_prometheus_exposer.hpp>
 
@@ -49,9 +53,10 @@ int main() {
     std::thread runner([&rv]() {
         try {
             rv.start();
-        } catch (...) {
+        } catch (std::exception const& e) {
             // Stop
             stop_all.clear();
+            std::cerr << "Runner thread exited with error: " << e.what() << "\n";
         }
     });
 

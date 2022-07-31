@@ -29,6 +29,7 @@ if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
     target_link_options(common INTERFACE)
 endif()
 
+target_compile_definitions(common INTERFACE $<$<CONFIG:Debug>: >)
 target_compile_definitions(common INTERFACE)
 
 target_link_libraries(ruuvitag PRIVATE common)
