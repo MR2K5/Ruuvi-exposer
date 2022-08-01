@@ -37,10 +37,12 @@ target_include_directories(ruuvitag PRIVATE ${PROJECT_SOURCE_DIR}/include/ruuvi)
 target_include_directories(ruuvi_exposer PRIVATE ${PROJECT_SOURCE_DIR}/include/ruuvi)
 target_include_directories(ruuvitag PUBLIC /usr/local/include ${PROJECT_SOURCE_DIR}/include)
 
+find_package(Threads REQUIRED)
+
 set(OVERRIDE_CXX_STANDARD_FLAGS OFF CACHE BOOL "" FORCE)
 add_subdirectory(ext/prometheus-cpp)
-target_link_libraries(ruuvitag PRIVATE prometheus-cpp::core prometheus-cpp::pull)
-target_link_libraries(ruuvi_exposer PRIVATE ruuvitag)
+target_link_libraries(ruuvitag PRIVATE prometheus-cpp::core prometheus-cpp::pull Threads::Threads)
+target_link_libraries(ruuvi_exposer PRIVATE ruuvitag Threads::Threads)
 
 find_package(Gattlib REQUIRED MODULE)
 target_link_libraries(ruuvitag PRIVATE Gattlib::Gattlib)
