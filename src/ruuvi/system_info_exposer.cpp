@@ -37,6 +37,7 @@ struct thermal_info {
 };
 
 struct thermal_sensor {
+    static constexpr double step_size = 1.0 / 1000;
     std::filesystem::path temperature_path;
     std::string type;
 };
@@ -205,7 +206,7 @@ std::unique_ptr<const system_info> system_info::create() {
         info->get_sysinfo();
         info->get_loadavg();
         info->read_netstat();
-        //        info->read_thermal_sensors();
+        info->read_thermal_sensors();
     } catch (std::exception const& e) {
         info->error("Exception in system_info::create(): ", e.what());
     } catch (...) { info->error("Unknown exception in system_info::create()"); }
@@ -374,14 +375,13 @@ std::vector<thermal_sensor> const& system_info::find_sensors() {
             std::string dirname = entry.path().filename().string();
             if (dirname.find("thermal_zone") != dirname.npos) {
                 auto& sensor            = sensors.emplace_back();
-                sensor.temperature_path = dirname / std::filesystem::path("temp");
+                sensor.temperature_path = entry.path() / "temp";
 
-                std::ifstream type(dirname / std::filesystem::path("type"));
+                std::ifstream type(entry.path() / "type");
                 if (type.good()) {
                     type >> sensor.type;
                 } else {
-                    error("Failed to read thermal type file ",
-                          dirname / std::filesystem::path("type"));
+                    error("Failed to read thermal type file ", entry.path() / "type");
                 }
             }
         }
@@ -404,7 +404,7 @@ void system_info::read_thermal_sensors() {
         if (temperature_file.good()) {
             long value;
             temperature_file >> value;
-            info.value_celsius = value / 100.0;
+            info.value_celsius = value * thermal_sensor::step_size;
         } else {
             error("Failed to open temperature file ", sensor.temperature_path, " for ", info.type);
         }
@@ -634,6 +634,23 @@ private:
                              .Help("Count of sent octets (bytes) since boot")
                              .Type(MetricType::Gauge)
                              .Callback(to_double_single(&system_info::OutOctets)));
+
+        // sys/class/thermal/
+        auto parse_sensors = [](system_info const& info) {
+            std::vector<ClientMetric> metrics;
+            metrics.reserve(info.SensorTemps.size());
+            for (auto& sensor : info.SensorTemps) {
+                ClientMetric& m = metrics.emplace_back();
+                m.gauge.value   = sensor.value_celsius;
+                m.label.push_back({ "type", sensor.type });
+            }
+            return metrics;
+        };
+        gauges.push_back(BuildRawGauge()
+                             .Name("sysinfo_sensor_temperature_celsius")
+                             .Help("Temperature of a sensor with its type as a label")
+                             .Type(MetricType::Gauge)
+                             .Callback(parse_sensors));
     }
 };
 
