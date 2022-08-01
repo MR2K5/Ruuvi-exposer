@@ -1,64 +1,82 @@
 cmake_minimum_required(VERSION 3.23)
 
-project(ruuvitag LANGUAGES CXX)
+project(ruuvitag VERSION 0.1 LANGUAGES CXX)
 
 # use 17, raspberrypi doesn't have c++20
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-set(RUUVITAG_SANITIZE "" CACHE STRING "Enable a sanitizer")
-set_property(CACHE RUUVITAG_SANITIZE PROPERTY STRINGS "" "thread" "undefined")
-
-set(CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake)
-
-add_library(ruuvitag SHARED "")
-add_library(sysinfo SHARED "")
-add_library(logging INTERFACE)
-add_executable(ruuvi_exposer "")
-
-add_library(common INTERFACE)
-
-if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-    target_compile_options(common INTERFACE -Wall -Wextra -pedantic $<$<BOOL:${RUUVITAG_SANITIZE}>: -fsanitize=${RUUVITAG_SANITIZE}>)
-    target_link_options(common INTERFACE $<$<BOOL:${RUUVITAG_SANITIZE}>: -fsanitize=${RUUVITAG_SANITIZE}>)
-endif()
-if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
-    target_compile_options(common INTERFACE -Wall -Wextra -pedantic -stdlib=libstdc++)
-    target_link_options(common INTERFACE -stdlib=libstdc++)
+if(NOT CMAKE_BUILD_TYPE)
+    message(STATUS "Build type not set, defaulting to Debug")
+    set(CMAKE_BUILD_TYPE "Debug" CACHE STRING "" FORCE)
 endif()
 
-target_include_directories(common INTERFACE ${PROJECT_SOURCE_DIR}/include)
+find_package(Git QUIET)
 
-target_compile_definitions(common INTERFACE $<$<CONFIG:Debug>: >)
-target_link_libraries(common INTERFACE logging)
+if (GIT_FOUND AND EXISTS "${PROJECT_SOURCE_DIR}/.git")
+    option(GIT_SUBMODULE "Check submodules during build" ON)
 
-target_link_libraries(ruuvitag PRIVATE common)
-target_link_libraries(sysinfo PRIVATE common)
-target_link_libraries(logging INTERFACE common)
-target_link_libraries(ruuvi_exposer PRIVATE common)
+    if (GIT_SUBMODULE)
+        message(STATUS "Updating submodules...")
+        execute_process(COMMAND ${GIT_EXECUTABLE} submodule update --init --recursive --depth 1
+            WORKING_DIRECTORY ${PROJECT_SOURCE_DIR} RESULT_VARIABLE GIT_SUBMODULE_RESULT)
+        if (NOT GIT_SUBMODULE_RESULT EQUAL "0")
+            message(FATAL_ERROR
+                "git submodule update --init --recursive --depth 1 failed with ${GIT_SUBMODULE_ERROR}")
+        endif()
+    endif()
+endif()
 
-target_include_directories(ruuvitag PRIVATE ${PROJECT_SOURCE_DIR}/include/ruuvi)
-target_include_directories(sysinfo PRIVATE ${PROJECT_SOURCE_DIR}/include/sysinfo)
-
-find_package(Threads REQUIRED)
+if(NOT EXISTS "${PROJECT_SOURCE_DIR}/ext/prometheus-cpp/CMakeLists.txt")
+    message(FATAL_ERROR "The submodules were not downloaded!")
+endif()
 
 set(OVERRIDE_CXX_STANDARD_FLAGS OFF CACHE BOOL "" FORCE)
-set(BUILD_SHARED_LIBS ON CACHE BOOL "" FORCE) # prometheus-cpp must be build as a shared library
 add_subdirectory(ext/prometheus-cpp)
+
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 find_package(Gattlib REQUIRED MODULE)
 
-target_link_libraries(ruuvitag PRIVATE prometheus-cpp::core Threads::Threads Gattlib::Gattlib)
+set(CMAKE_EXPORT_COMPILE_COMMANDS TRUE CACHE INTERNAL "Export compile commands")
 
-target_link_libraries(ruuvi_exposer PRIVATE ruuvitag sysinfo Threads::Threads prometheus-cpp::pull)
+set(USE_SANITIZER "" CACHE STRING "Select sanitizer used (only works with gcc or clang)")
+set_property(CACHE USE_SANITIZER PROPERTY STRINGS "" "thread" "undefined" "address")
+
+add_library(options INTERFACE)
+if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+    message(STATUS "Using gcc or clang, adding warnings")
+    target_compile_options(options INTERFACE -Wall -Wextra -pedantic $<$<CONFIG:Release>: -march=native>)
+    target_link_options(options INTERFACE -Wall -Wextra -pedantic $<$<CONFIG:Release>: -march=native>)
+    if(USE_SANITIZER)
+        message(STATUS "Using sanitizer ${USE_SANITIZER}")
+        target_link_options(options INTERFACE -fsanitize=${USE_SANITIZER})
+        target_compile_options(options INTERFACE -fsanitize=${USE_SANITIZER})
+    endif()
+endif()
+if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+    message(STATUS "Clang: using libstdc++")
+    target_compile_options(options INTERFACE -stdlib=libstdc++)
+    target_link_options(options INTERFACE -stdlib=libstdc++)
+endif()
+
+add_library(sysinfo "")
+target_link_libraries(sysinfo PRIVATE options prometheus-cpp::core)
+
+add_library(ruuvitag "")
+target_link_libraries(ruuvitag PRIVATE options Gattlib::Gattlib prometheus-cpp::core)
+
+add_executable(ruuvi-exposer "")
+target_link_libraries(ruuvi-exposer PRIVATE options sysinfo ruuvitag prometheus-cpp::pull)
 
 
 add_subdirectory(src)
 add_subdirectory(include)
 
-set_target_properties(ruuvi_exposer PROPERTIES INSTALL_RPATH ${CMAKE_INSTALL_PREFIX}/lib/)
-
-install(TARGETS ruuvitag ruuvi_exposer
-    FILE_SET HEADERS DESTINATION include
-    LIBRARY DESTINATION lib
-    RUNTIME DESTINATION bin)
+set_target_properties(sysinfo ruuvitag ruuvi-exposer PROPERTIES INSTALL_RPATH ${CMAKE_INSTALL_PREFIX}/lib)
+install(TARGETS sysinfo ruuvitag ruuvi-exposer
+    LIBRARY
+    ARCHIVE
+    RUNTIME
+    FILE_SET HEADERS
+)
