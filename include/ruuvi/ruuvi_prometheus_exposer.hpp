@@ -4,15 +4,17 @@
 
 #include <memory>
 
+#include <prometheus/collectable.h>
+
 namespace ruuvi {
 
 /**
  * @brief The RuuviExposer class
  */
-class RuuviExposer {
+class RuuviExposer: public prometheus::Collectable {
 public:
     ~RuuviExposer();
-    RuuviExposer(std::string const& addr);
+    RuuviExposer();
 
     /**
      * @brief update Updates prometheus with values from data, with respect to its mac
@@ -21,16 +23,11 @@ public:
      */
     void update(ruuvi_data_format_5 const& data);
 
+    virtual std::vector<prometheus::MetricFamily> Collect() const override;
+
 private:
     class Impl;
     std::unique_ptr<Impl> impl;
-
-    friend void test();
 };
-
-void test();
-void test2();
-
-struct Test;
 
 }  // namespace ruuvi

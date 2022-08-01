@@ -1,5 +1,4 @@
 #include "ruuvi_prometheus_exposer.hpp"
-#include <iostream>
 
 #include <atomic>
 #include <cerrno>
@@ -16,8 +15,6 @@
 #include <prometheus/family.h>
 #include <prometheus/gauge.h>
 #include <prometheus/registry.h>
-
-#include "system_info_exposer.hpp"
 
 extern "C" {
 #include <sys/sysinfo.h>
@@ -50,13 +47,8 @@ private:
 
 class RuuviExposer::Impl {
 public:
-    Impl(std::string const& addr)
-        : exposer(addr), registry(std::make_shared<Registry>()),
-          sysinfo_collector(sys_info::SystemInfo::create()) {
+    Impl(): registry(std::make_shared<Registry>()) {
         std::lock_guard grd(mtx);
-
-        exposer.RegisterCollectable(registry);
-        exposer.RegisterCollectable(sysinfo_collector);
 
         collectors.push_back({ BuildGauge()
                                    .Name("ruuvi_temperature_celsius")
@@ -150,23 +142,25 @@ public:
         if (new_data.contains_errors) e.Increment();
     }
 
+    std::vector<MetricFamily> Collect() { return registry->Collect(); }
+
 private:
-    Exposer exposer;
     const std::shared_ptr<Registry> registry;
 
     std::vector<MetricCollector> collectors;
     Family<Counter>* errors_counter;
     Family<Counter>* measurements_total;
     std::mutex mtx;
-
-    //     Internal measurements
-    const std::shared_ptr<sys_info::SystemInfo> sysinfo_collector;
 };
 
-RuuviExposer::RuuviExposer(std::string const& addr): impl(std::make_unique<Impl>(addr)) {}
+RuuviExposer::RuuviExposer(): impl(std::make_unique<Impl>()) {}
 
 RuuviExposer::~RuuviExposer() = default;
 
 void RuuviExposer::update(ruuvi_data_format_5 const& data) {
     impl->update_data(data);
+}
+
+std::vector<MetricFamily> RuuviExposer::Collect() const {
+    return impl->Collect();
 }

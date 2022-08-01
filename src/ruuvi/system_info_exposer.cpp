@@ -18,10 +18,11 @@
 #include <sys/sysinfo.h>
 #include <unistd.h>
 
-#include "logging.hpp"
+#include <logging/logging.hpp>
 
 using namespace sys_info;
 using namespace prometheus;
+using logging::log;
 
 std::shared_ptr<sys_info::SystemInfo> SystemInfo::create() {
     return std::make_shared<SystemInfo>(init());
@@ -109,6 +110,7 @@ private:
         return open_file(SystemInfo::netstat_location);
     }
 
+    double get_unit(std::string const& u);
     double get_clock_hz();
 
     system_info() = default;
@@ -118,8 +120,6 @@ private:
     void read_netstat();
     void get_sysinfo();
     void get_loadavg();
-
-    double get_unit(std::string const& u);
 
     struct meminfo_line {
         std::string name;
@@ -170,6 +170,14 @@ double system_info::get_clock_hz() {
     }();
     if (v < 0) error();
     return v;
+}
+
+double system_info::get_unit(const std::string& u) {
+    if (u == "kB") return 1000;
+    if (u == "B" || u == "") return 1;
+    if (u == "MB") return 1'000'000;
+    error("Unknown unit in meminfo file: ", u);
+    return 1;
 }
 
 std::unique_ptr<const system_info> system_info::create() {
@@ -318,15 +326,6 @@ void system_info::get_loadavg() {
     int written = getloadavg(Loads, 3);
     if (written != 3) { error("Failed to call getloadavg(): returned ", written); }
 }
-
-double system_info::get_unit(const std::string& u) {
-    if (u == "kB") return 1000;
-    if (u == "B" || u == "") return 1;
-    if (u == "MB") return 1'000'000;
-    error("Unknown unit in meminfo file: ", u);
-    return 1;
-}
-
 std::list<system_info::meminfo_line> system_info::parse_lines(std::istream& is) {
     std::list<meminfo_line> lines;
 

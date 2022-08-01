@@ -1,7 +1,6 @@
 #pragma once
 
 #include <prometheus/collectable.h>
-#include <prometheus/metric_family.h>
 
 #include <memory>
 #include <vector>

@@ -2,10 +2,10 @@
 
 #include <iostream>
 
-namespace sys_info {
+namespace logging {
 
 template<class... As> void log(As&&... as) {
     (std::clog << ... << as) << std::endl;
 }
 
-}  // namespace sys_info
+}  // namespace logging

@@ -1,6 +1,7 @@
-#include "prometheus/counter.h"
-#include "prometheus/exposer.h"
-#include "prometheus/registry.h"
+#include <prometheus/counter.h>
+#include <prometheus/exposer.h>
+#include <prometheus/registry.h>
+#include <sysinfo/system_info_exposer.hpp>
 
 #include <ruuvi/ruuvi.hpp>
 #include <ruuvi/ruuvi_prometheus_exposer.hpp>
@@ -16,7 +17,11 @@ class Ruuvitag {
 public:
     Ruuvitag()
         : listener(std::bind(&Ruuvitag::ble_callback, this, std::placeholders::_1)),
-          exposer("0.0.0.0:9105") {}
+          exposer("0.0.0.0:9105"), rvexposer(std::make_shared<ruuvi::RuuviExposer>()),
+          sysinfo(sys_info::SystemInfo::create()) {
+        exposer.RegisterCollectable(rvexposer);
+        exposer.RegisterCollectable(sysinfo);
+    }
     Ruuvitag(Ruuvitag const&)            = delete;
     Ruuvitag& operator=(Ruuvitag const&) = delete;
 
@@ -32,13 +37,15 @@ public:
 #ifndef NDEBUG
             std::cout << data << "\n\n" << std::flush;
 #endif
-            exposer.update(data);
+            rvexposer->update(data);
         }
     }
 
 private:
     ble::BleListener listener;
-    ruuvi::RuuviExposer exposer;
+    prometheus::Exposer exposer;
+    std::shared_ptr<ruuvi::RuuviExposer> rvexposer;
+    std::shared_ptr<sys_info::SystemInfo> sysinfo;
 };
 
 std::atomic_flag stop_all = ATOMIC_FLAG_INIT;

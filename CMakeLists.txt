@@ -13,6 +13,8 @@ set_property(CACHE RUUVITAG_SANITIZE PROPERTY STRINGS "" "thread" "undefined")
 set(CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake)
 
 add_library(ruuvitag SHARED "")
+add_library(sysinfo SHARED "")
+add_library(logging INTERFACE)
 add_executable(ruuvi_exposer "")
 
 add_library(common INTERFACE)
@@ -26,27 +28,29 @@ if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
     target_link_options(common INTERFACE -stdlib=libstdc++)
 endif()
 
+target_include_directories(common INTERFACE ${PROJECT_SOURCE_DIR}/include)
 
 target_compile_definitions(common INTERFACE $<$<CONFIG:Debug>: >)
-target_compile_definitions(common INTERFACE)
+target_link_libraries(common INTERFACE logging)
 
 target_link_libraries(ruuvitag PRIVATE common)
+target_link_libraries(sysinfo PRIVATE common)
+target_link_libraries(logging INTERFACE common)
 target_link_libraries(ruuvi_exposer PRIVATE common)
 
 target_include_directories(ruuvitag PRIVATE ${PROJECT_SOURCE_DIR}/include/ruuvi)
-target_include_directories(ruuvi_exposer PRIVATE ${PROJECT_SOURCE_DIR}/include/ruuvi)
-target_include_directories(ruuvitag PUBLIC /usr/local/include ${PROJECT_SOURCE_DIR}/include)
+target_include_directories(sysinfo PRIVATE ${PROJECT_SOURCE_DIR}/include/sysinfo)
 
 find_package(Threads REQUIRED)
 
 set(OVERRIDE_CXX_STANDARD_FLAGS OFF CACHE BOOL "" FORCE)
 set(BUILD_SHARED_LIBS ON CACHE BOOL "" FORCE) # prometheus-cpp must be build as a shared library
 add_subdirectory(ext/prometheus-cpp)
-target_link_libraries(ruuvitag PRIVATE prometheus-cpp::core prometheus-cpp::pull prometheus-cpp::push Threads::Threads)
-target_link_libraries(ruuvi_exposer PRIVATE ruuvitag Threads::Threads)
-
 find_package(Gattlib REQUIRED MODULE)
-target_link_libraries(ruuvitag PRIVATE Gattlib::Gattlib)
+
+target_link_libraries(ruuvitag PRIVATE prometheus-cpp::core Threads::Threads Gattlib::Gattlib)
+
+target_link_libraries(ruuvi_exposer PRIVATE ruuvitag sysinfo Threads::Threads prometheus-cpp::pull)
 
 
 add_subdirectory(src)
