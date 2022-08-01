@@ -4,6 +4,7 @@
 #include <atomic>
 #include <cassert>
 #include <cstring>
+#include <filesystem>
 #include <fstream>
 #include <functional>
 #include <iostream>
@@ -29,6 +30,16 @@ std::shared_ptr<sys_info::SystemInfo> SystemInfo::create() {
 }
 
 namespace {
+
+struct thermal_info {
+    std::string type;
+    double value_celsius;
+};
+
+struct thermal_sensor {
+    std::filesystem::path temperature_path;
+    std::string type;
+};
 
 struct system_info {
     using ul = unsigned long;
@@ -66,6 +77,9 @@ struct system_info {
     // From /proc/net/netstat
     ul InOctets;
     ul OutOctets;
+
+    // From /sys/class/thermal
+    std::vector<thermal_info> SensorTemps;
 
     bool has_errors;
     std::string errors;
@@ -110,6 +124,8 @@ private:
         return open_file(SystemInfo::netstat_location);
     }
 
+    std::vector<thermal_sensor> const& find_sensors();
+
     double get_unit(std::string const& u);
     double get_clock_hz();
 
@@ -120,6 +136,7 @@ private:
     void read_netstat();
     void get_sysinfo();
     void get_loadavg();
+    void read_thermal_sensors();
 
     struct meminfo_line {
         std::string name;
@@ -188,6 +205,7 @@ std::unique_ptr<const system_info> system_info::create() {
         info->get_sysinfo();
         info->get_loadavg();
         info->read_netstat();
+        //        info->read_thermal_sensors();
     } catch (std::exception const& e) {
         info->error("Exception in system_info::create(): ", e.what());
     } catch (...) { info->error("Unknown exception in system_info::create()"); }
@@ -344,6 +362,54 @@ std::list<system_info::meminfo_line> system_info::parse_lines(std::istream& is) 
     }
 
     return lines;
+}
+
+std::vector<thermal_sensor> const& system_info::find_sensors() {
+    static std::vector<thermal_sensor> sensors = [this]() {
+        std::vector<thermal_sensor> sensors;
+
+        std::filesystem::path path = SystemInfo::thremal_sesnsors_root_location;
+        for (auto const& entry : std::filesystem::directory_iterator(path)) {
+            if (!entry.is_directory()) continue;
+            std::string dirname = entry.path().filename().string();
+            if (dirname.find("thermal_zone") != dirname.npos) {
+                auto& sensor            = sensors.emplace_back();
+                sensor.temperature_path = dirname / std::filesystem::path("temp");
+
+                std::ifstream type(dirname / std::filesystem::path("type"));
+                if (type.good()) {
+                    type >> sensor.type;
+                } else {
+                    error("Failed to read thermal type file ",
+                          dirname / std::filesystem::path("type"));
+                }
+            }
+        }
+        log("Found ", sensors.size(), " sensors");
+        for (auto& s : sensors) log(s.type);
+        return sensors;
+    }();
+
+    return sensors;
+}
+
+void system_info::read_thermal_sensors() {
+    std::vector<thermal_sensor> const& sensors = find_sensors();
+    SensorTemps.reserve(sensors.size());
+    for (auto const& sensor : sensors) {
+        thermal_info info{};
+        info.type = sensor.type;
+
+        std::ifstream temperature_file(sensor.temperature_path);
+        if (temperature_file.good()) {
+            long value;
+            temperature_file >> value;
+            info.value_celsius = value / 100.0;
+        } else {
+            error("Failed to open temperature file ", sensor.temperature_path, " for ", info.type);
+        }
+        SensorTemps.push_back(info);
+    }
 }
 
 using cb_func = std::vector<ClientMetric>(system_info const&);
