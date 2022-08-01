@@ -24,12 +24,13 @@ public:
 private:
     class Impl;
     std::unique_ptr<Impl> impl;
-    friend struct D;
+
+    friend void test();
 };
 
-struct D {
-    void operator()(RuuviExposer::Impl* p);
-    static std::unique_ptr<RuuviExposer::Impl, D> test();
-};
+void test();
+void test2();
+
+struct Test;
 
 }  // namespace ruuvi

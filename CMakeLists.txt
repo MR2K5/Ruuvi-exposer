@@ -17,17 +17,15 @@ add_executable(ruuvi_exposer "")
 
 add_library(common INTERFACE)
 
-add_custom_target(print COMMAND echo -fsanitize=${RUUVITAG_SANITIZE})
-
-if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
-    target_compile_options(common INTERFACE -Wall -Wextra -pedantic -stdlib=libstdc++
-        -fsanitize=${RUUVITAG_SANITIZE})
-    target_link_options(common INTERFACE -stdlib=libstdc++ -fsanitize=${RUUVITAG_SANITIZE})
-endif()
 if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-    target_compile_options(common INTERFACE -Wall -Wextra -pedantic)
-    target_link_options(common INTERFACE)
+    target_compile_options(common INTERFACE -Wall -Wextra -pedantic $<$<BOOL:${RUUVITAG_SANITIZE}>: -fsanitize=${RUUVITAG_SANITIZE}>)
+    target_link_options(common INTERFACE $<$<BOOL:${RUUVITAG_SANITIZE}>: -fsanitize=${RUUVITAG_SANITIZE}>)
 endif()
+if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+    target_compile_options(common INTERFACE -Wall -Wextra -pedantic -stdlib=libstdc++)
+    target_link_options(common INTERFACE -stdlib=libstdc++)
+endif()
+
 
 target_compile_definitions(common INTERFACE $<$<CONFIG:Debug>: >)
 target_compile_definitions(common INTERFACE)
@@ -39,21 +37,13 @@ target_include_directories(ruuvitag PRIVATE ${PROJECT_SOURCE_DIR}/include/ruuvi)
 target_include_directories(ruuvi_exposer PRIVATE ${PROJECT_SOURCE_DIR}/include/ruuvi)
 target_include_directories(ruuvitag PUBLIC /usr/local/include ${PROJECT_SOURCE_DIR}/include)
 
-find_package(Threads REQUIRED)
-find_package(Python3 REQUIRED COMPONENTS Development)
-
-target_link_libraries(ruuvi_exposer PUBLIC ruuvitag Threads::Threads Python3::Python)
-
-#find_package(prometheus-cpp CONFIG REQUIRED)
-#target_link_libraries(ruuvi_exposer PRIVATE prometheus-cpp::pull Threads::Threads)
+set(OVERRIDE_CXX_STANDARD_FLAGS OFF CACHE BOOL "" FORCE)
 add_subdirectory(ext/prometheus-cpp)
-target_link_libraries(ruuvi_exposer PRIVATE prometheus-cpp::pull)
+target_link_libraries(ruuvitag PRIVATE prometheus-cpp::core prometheus-cpp::pull)
+target_link_libraries(ruuvi_exposer PRIVATE ruuvitag)
 
-#find_package(Gattlib REQUIRED MODULE)
-#set(GATTLIB_BUILD_EXAMPLES CACHE "" OFF)
-#add_subdirectory(ext/gattlib)
 find_package(Gattlib REQUIRED MODULE)
-target_link_libraries(ruuvi_exposer PRIVATE Gattlib::Gattlib)
+target_link_libraries(ruuvitag PRIVATE Gattlib::Gattlib)
 
 
 add_subdirectory(src)

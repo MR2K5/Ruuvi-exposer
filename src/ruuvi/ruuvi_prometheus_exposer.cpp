@@ -51,8 +51,12 @@ private:
 class RuuviExposer::Impl {
 public:
     Impl(std::string const& addr)
-        : registry(std::make_shared<Registry>()),
+        : exposer(addr), registry(std::make_shared<Registry>()),
           sysinfo_collector(sys_info::SystemInfo::create()) {
+        std::lock_guard grd(mtx);
+
+        exposer.RegisterCollectable(registry);
+        exposer.RegisterCollectable(sysinfo_collector);
 
         collectors.push_back({ BuildGauge()
                                    .Name("ruuvi_temperature_celsius")
@@ -136,10 +140,6 @@ public:
                                   .Name("ruuvi_received_measurements_total")
                                   .Help("Total count of received measurements")
                                   .Register(*registry);
-
-        exposer = std::make_unique<Exposer>(addr);
-        exposer->RegisterCollectable(registry);
-        exposer->RegisterCollectable(sysinfo_collector);
     }
 
     void update_data(ruuvi_data_format_5 const& new_data) {
@@ -151,15 +151,16 @@ public:
     }
 
 private:
-    std::unique_ptr<Exposer> exposer;
+    Exposer exposer;
     const std::shared_ptr<Registry> registry;
+
     std::vector<MetricCollector> collectors;
     Family<Counter>* errors_counter;
     Family<Counter>* measurements_total;
     std::mutex mtx;
 
-    // Internal measurements
-    std::shared_ptr<sys_info::SystemInfo> sysinfo_collector;
+    //     Internal measurements
+    const std::shared_ptr<sys_info::SystemInfo> sysinfo_collector;
 };
 
 RuuviExposer::RuuviExposer(std::string const& addr): impl(std::make_unique<Impl>(addr)) {}
@@ -168,12 +169,4 @@ RuuviExposer::~RuuviExposer() = default;
 
 void RuuviExposer::update(ruuvi_data_format_5 const& data) {
     impl->update_data(data);
-}
-
-void D::operator()(RuuviExposer::Impl* p) {
-    delete p;
-}
-
-std::unique_ptr<RuuviExposer::Impl, D> ruuvi::D::test() {
-    return std::unique_ptr<RuuviExposer::Impl, D>(new RuuviExposer::Impl("0.0.0.0:9106"), D());
 }
