@@ -39,6 +39,7 @@ list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 find_package(Gattlib REQUIRED MODULE)
 
 find_package(Filesystem REQUIRED)
+find_package(Threads REQUIRED)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS TRUE CACHE INTERNAL "Export compile commands")
 
@@ -66,10 +67,10 @@ add_library(sysinfo "")
 target_link_libraries(sysinfo PRIVATE options prometheus-cpp::core std::filesystem)
 
 add_library(ruuvitag "")
-target_link_libraries(ruuvitag PRIVATE options Gattlib::Gattlib prometheus-cpp::core)
+target_link_libraries(ruuvitag PRIVATE options Gattlib::Gattlib prometheus-cpp::core Threads::Threads)
 
 add_executable(ruuvi-exposer "")
-target_link_libraries(ruuvi-exposer PRIVATE options sysinfo ruuvitag prometheus-cpp::pull)
+target_link_libraries(ruuvi-exposer PRIVATE options sysinfo ruuvitag prometheus-cpp::pull Threads::Threads)
 
 
 add_subdirectory(src)
