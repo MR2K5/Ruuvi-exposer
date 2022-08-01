@@ -38,6 +38,8 @@ add_subdirectory(ext/prometheus-cpp)
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 find_package(Gattlib REQUIRED MODULE)
 
+find_package(Filesystem REQUIRED)
+
 set(CMAKE_EXPORT_COMPILE_COMMANDS TRUE CACHE INTERNAL "Export compile commands")
 
 set(USE_SANITIZER "" CACHE STRING "Select sanitizer used (only works with gcc or clang)")
@@ -61,7 +63,7 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
 endif()
 
 add_library(sysinfo "")
-target_link_libraries(sysinfo PRIVATE options prometheus-cpp::core)
+target_link_libraries(sysinfo PRIVATE options prometheus-cpp::core std::filesystem)
 
 add_library(ruuvitag "")
 target_link_libraries(ruuvitag PRIVATE options Gattlib::Gattlib prometheus-cpp::core)
