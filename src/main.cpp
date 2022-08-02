@@ -1,10 +1,10 @@
+#include <logging/logging.hpp>
 #include <prometheus/counter.h>
 #include <prometheus/exposer.h>
 #include <prometheus/registry.h>
-#include <sysinfo/system_info_exposer.hpp>
-
 #include <ruuvi/ruuvi.hpp>
 #include <ruuvi/ruuvi_prometheus_exposer.hpp>
+#include <sysinfo/system_info_exposer.hpp>
 
 #include <cassert>
 #include <iostream>
@@ -12,6 +12,8 @@
 #include <csignal>
 #include <future>
 #include <thread>
+
+using logging::log;
 
 class Ruuvitag {
 public:
@@ -21,22 +23,25 @@ public:
           sysinfo(sys_info::SystemInfo::create()) {
         exposer.RegisterCollectable(rvexposer);
         exposer.RegisterCollectable(sysinfo);
+        log("Collectables registered");
     }
     Ruuvitag(Ruuvitag const&)            = delete;
     Ruuvitag& operator=(Ruuvitag const&) = delete;
 
-    void start() { listener.start(); }
-    void stop() { listener.stop(); }
+    void start() {
+        log("Starting ble listener");
+        listener.start();
+    }
+    void stop() {
+        log("Stopping ble listener");
+        listener.stop();
+    }
 
     void ble_callback(ble::BlePacket const& p) {
-#ifndef NDBEUG
-        std::cout << p << "\n";
-#endif
+        log(p);
         if (p.manufacturer_id == 0x0499) {
             auto data = ruuvi::convert_data_format_5(p);
-#ifndef NDEBUG
-            std::cout << data << "\n\n" << std::flush;
-#endif
+            log(data);
             rvexposer->update(data);
         }
     }
@@ -72,7 +77,7 @@ int main() {
         while (stop_all.test_and_set()) {
             std::this_thread::sleep_for(std::chrono::milliseconds(500));
         }
-        std::cerr << "Stopping...\n";
+        log("Stopping...");
         rv.stop();
     });
 
