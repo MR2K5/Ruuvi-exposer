@@ -7,6 +7,9 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
+set(CMAKE_CXX_FLAGS -gdwarf-4)
+set(CMAKE_C_FLAGS -gdwarf-4)
+
 if(NOT CMAKE_BUILD_TYPE)
     message(STATUS "Build type not set, defaulting to Debug")
     set(CMAKE_BUILD_TYPE "Debug" CACHE STRING "" FORCE)
@@ -63,21 +66,16 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
     target_link_options(options INTERFACE -stdlib=libstdc++)
 endif()
 
-add_library(sysinfo "")
-target_link_libraries(sysinfo PRIVATE options prometheus-cpp::core std::filesystem)
-
-add_library(ruuvitag "")
-target_link_libraries(ruuvitag PRIVATE options Gattlib::Gattlib prometheus-cpp::core Threads::Threads)
 
 add_executable(ruuvi-exposer "")
-target_link_libraries(ruuvi-exposer PRIVATE options sysinfo ruuvitag prometheus-cpp::pull Threads::Threads)
+target_link_libraries(ruuvi-exposer PRIVATE options Gattlib::Gattlib prometheus-cpp::pull Threads::Threads std::filesystem)
 
 
 add_subdirectory(src)
 add_subdirectory(include)
 
-set_target_properties(sysinfo ruuvitag ruuvi-exposer PROPERTIES INSTALL_RPATH ${CMAKE_INSTALL_PREFIX}/lib)
-install(TARGETS sysinfo ruuvitag ruuvi-exposer
+set_target_properties(ruuvi-exposer PROPERTIES INSTALL_RPATH ${CMAKE_INSTALL_PREFIX}/lib)
+install(TARGETS ruuvi-exposer
     LIBRARY
     ARCHIVE
     RUNTIME
