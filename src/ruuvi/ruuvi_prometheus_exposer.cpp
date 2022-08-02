@@ -48,8 +48,6 @@ private:
 class RuuviExposer::Impl {
 public:
     Impl(): registry(std::make_shared<Registry>()) {
-        std::lock_guard grd(mtx);
-
         collectors.push_back({ BuildGauge()
                                    .Name("ruuvi_temperature_celsius")
                                    .Help("Ruuvitag temperature in Celsius")
@@ -135,7 +133,6 @@ public:
     }
 
     void update_data(ruuvi_data_format_5 const& new_data) {
-        std::lock_guard grd(mtx);
         for (auto& c : collectors) { c.update(new_data); }
         measurements_total->Add({ { "mac", new_data.mac } }).Increment();
         auto& e = errors_counter->Add({ { "mac", new_data.mac } });
@@ -150,7 +147,6 @@ private:
     std::vector<MetricCollector> collectors;
     Family<Counter>* errors_counter;
     Family<Counter>* measurements_total;
-    std::mutex mtx;
 };
 
 RuuviExposer::RuuviExposer(): impl(std::make_unique<Impl>()) {}

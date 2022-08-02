@@ -7,6 +7,8 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
+set(CMAKE_CXX_FLAGS -gdwarf-4)
+
 if(NOT CMAKE_BUILD_TYPE)
     message(STATUS "Build type not set, defaulting to Debug")
     set(CMAKE_BUILD_TYPE "Debug" CACHE STRING "" FORCE)
