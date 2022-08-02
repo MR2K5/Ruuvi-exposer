@@ -35,6 +35,11 @@ if(NOT EXISTS "${PROJECT_SOURCE_DIR}/ext/prometheus-cpp/CMakeLists.txt")
     message(FATAL_ERROR "The submodules were not downloaded!")
 endif()
 
+if(NOT ENABLE_TESTING)
+    message(STATUS "ENABLE_TESTING not set, disabling by default")
+    set(ENABLE_TESTING OFF CACHE BOOL "Enable building of prometheus-cpp tests")
+endif()
+
 set(OVERRIDE_CXX_STANDARD_FLAGS OFF CACHE BOOL "" FORCE)
 add_subdirectory(ext/prometheus-cpp)
 
