@@ -21,4 +21,10 @@ std::unique_ptr<prometheus::Exposer> start_exposer() {
 
 int main() {
     auto exposer = start_exposer();
+
+    auto sysinfo = sys_info::SystemInfo::create();
+    exposer->RegisterCollectable(sysinfo);
+
+    std::this_thread::sleep_for(std::chrono::seconds(5));
+    std::terminate();
 }
