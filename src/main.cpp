@@ -22,8 +22,11 @@ std::unique_ptr<prometheus::Exposer> start_exposer() {
 int main() {
     auto exposer = start_exposer();
 
-    auto sysinfo = sys_info::SystemInfo::create();
-    exposer->RegisterCollectable(sysinfo);
+    auto reg      = std::make_shared<prometheus::Registry>();
+    auto& c       = prometheus::BuildCounter().Name("TEST").Help("").Register(*reg);
+    auto& counter = c.Add({});
+    counter.Increment();
+    exposer->RegisterCollectable(reg);
 
     std::this_thread::sleep_for(std::chrono::seconds(5));
     std::terminate();
