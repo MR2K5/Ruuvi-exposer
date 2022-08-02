@@ -13,7 +13,7 @@
 #include <mutex>
 #include <thread>
 
-inline constexpr char const* address = "0.0.0.0:9105";
+inline constexpr char const* address = "0.0.0.0:9106";
 
 std::unique_ptr<prometheus::Exposer> start_exposer() {
     return std::make_unique<prometheus::Exposer>(address);
