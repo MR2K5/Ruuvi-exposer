@@ -103,13 +103,13 @@ private:
 
 void BleListener::Impl::start() {
     int err = 0;
-    gattlib_adapter_open(adapter_name.empty() ? nullptr : adapter_name.c_str(), &adapter_);
+    err = gattlib_adapter_open(adapter_name.empty() ? nullptr : adapter_name.c_str(), &adapter_);
     check_gatt_errors(err);
     adapter_open = true;
 
     scan_enabled = true;
-    gattlib_adapter_scan_enable_with_filter(
-        adapter_, nullptr, 0, GATTLIB_DISCOVER_FILTER_NOTIFY_CHANGE, &gatt_internal_cb, 0, this);
+    err          = gattlib_adapter_scan_enable_with_filter(
+                 adapter_, nullptr, 0, GATTLIB_DISCOVER_FILTER_NOTIFY_CHANGE, &gatt_internal_cb, 0, this);
     scan_enabled = false;
     check_gatt_errors(err);
 }
