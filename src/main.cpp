@@ -61,6 +61,7 @@ void stop_handler(int) {
 
 int main() {
     Ruuvitag rv;
+    stop_all.test_and_set();
 
     std::thread runner([&rv]() {
         try {
@@ -73,7 +74,6 @@ int main() {
     });
 
     std::thread stopper([&rv]() {
-        stop_all.test_and_set();
         while (stop_all.test_and_set()) {
             std::this_thread::sleep_for(std::chrono::milliseconds(500));
         }
