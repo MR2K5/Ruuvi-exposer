@@ -84,6 +84,8 @@ int main() {
     std::signal(SIGTERM, stop_handler);
     std::signal(SIGINT, stop_handler);
 
+    std::this_thread::sleep_for(std::chrono::seconds(1));
+
     stopper.join();
     runner.join();
 }
