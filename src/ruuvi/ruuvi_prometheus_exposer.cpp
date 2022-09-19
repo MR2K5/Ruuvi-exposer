@@ -16,10 +16,6 @@
 #include <prometheus/gauge.h>
 #include <prometheus/registry.h>
 
-extern "C" {
-#include <sys/sysinfo.h>
-}
-
 using namespace ruuvi;
 using namespace prometheus;
 
