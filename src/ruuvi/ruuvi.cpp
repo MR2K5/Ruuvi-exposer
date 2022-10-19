@@ -97,8 +97,8 @@ private:
     const std::function<listener_callback> callback_;
     void* adapter_;
     const std::string adapter_name;
-    bool adapter_open = false;
-    bool scan_enabled = false;
+    std::atomic_bool adapter_open = false;
+    std::atomic_bool scan_enabled = false;
 };
 
 void BleListener::Impl::start() {
