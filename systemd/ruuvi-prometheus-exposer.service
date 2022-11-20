@@ -1,11 +1,15 @@
 [Unit]
 Description=Prometheus exposer for RuuviTag
+StartLimitIntervalSec=60
+StartLimitBurst=3
 
 [Service]
 Type=simple
-ExecStart=/opt/ruuvi/bin/ruuvi_exposer
+ExecStart=/opt/ruuvi/bin/ruuvi-exposer
 WorkingDirectory=/opt/ruuvi
-User=pi
+User=massimo
+RestartSec=10
+Restart=always
 
 [Install]
 WantedBy=multi-user.target
