@@ -1,0 +1,11 @@
+[Unit]
+Description=VictoriaMetrics server
+
+[Service]
+Type=simple
+ExecStart=/opt/victoriametrics/launch.sh
+WorkingDirectory=/opt/victoriametrics
+User=pi
+
+[Install]
+WantedBy=multi-user.target
