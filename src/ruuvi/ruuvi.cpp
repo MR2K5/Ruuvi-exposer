@@ -27,8 +27,8 @@ std::string gattlib_error_string(int err) {
     }
 }
 
-void check_gatt_errors(int err) {
-    if (err != 0) { throw gattlib_error(err); }
+void check_gatt_errors(int err, std::string const& msg = {}) {
+    if (err != 0) { throw gattlib_error(err, msg); }
 }
 
 template<typename I> std::string n2hexstr(I w, size_t hex_len = sizeof(I) << 1) {
@@ -41,9 +41,10 @@ template<typename I> std::string n2hexstr(I w, size_t hex_len = sizeof(I) << 1) 
 
 }  // namespace
 
-gattlib_error::gattlib_error(int err)
+gattlib_error::gattlib_error(int err, std::string const& msg)
     : std::runtime_error(
-        ("Gattlib error " + std::to_string(err) + ": ").append(gattlib_error_string(err))) {}
+        ("Gattlib error " + std::to_string(err) + ": ").append(gattlib_error_string(err))
+        + (msg.empty() ? "" : (" - " + msg))) {}
 
 class BleListener::Impl {
 public:
@@ -58,12 +59,12 @@ public:
         if (scan_enabled) {
             err          = gattlib_adapter_scan_disable(adapter_);
             scan_enabled = false;
-            check_gatt_errors(err);
+            check_gatt_errors(err, "gattlib_adapter_scan_disable");
         }
         if (adapter_open) {
             err          = gattlib_adapter_close(adapter_);
             adapter_open = false;
-            check_gatt_errors(err);
+            check_gatt_errors(err, "gattlib_adapter_close");
         }
     }
 
@@ -79,7 +80,7 @@ private:
         size_t man_count;
         int err = gattlib_get_advertisement_data_from_mac(adapter, addr, &data, &data_count,
                                                           &man_id, &man_data, &man_count);
-        check_gatt_errors(err);
+        check_gatt_errors(err, "gattlib_get_advertisement_data_from_mac");
 
         BlePacket packet;
         packet.adapter = adapter;
@@ -89,7 +90,7 @@ private:
         packet.manufacturer_data      = man_data;
         packet.manufacturer_data_size = man_count;
         err = gattlib_get_rssi_from_mac(adapter, addr, &packet.signal_strength);
-        check_gatt_errors(err);
+        check_gatt_errors(err, "gattlib_get_rssi_from_mac");
 
         impl->callback_(packet);
     }
@@ -104,14 +105,14 @@ private:
 void BleListener::Impl::start() {
     int err = 0;
     err = gattlib_adapter_open(adapter_name.empty() ? nullptr : adapter_name.c_str(), &adapter_);
-    check_gatt_errors(err);
+    check_gatt_errors(err, "gattlib_get_rssi_from_mac");
     adapter_open = true;
 
     scan_enabled = true;
     err          = gattlib_adapter_scan_enable_with_filter(
                  adapter_, nullptr, 0, GATTLIB_DISCOVER_FILTER_NOTIFY_CHANGE, &gatt_internal_cb, 0, this);
     scan_enabled = false;
-    check_gatt_errors(err);
+    check_gatt_errors(err, "gattlib_get_rssi_from_mac");
 }
 
 BleListener::BleListener(std::function<listener_callback> cb, std::string const& nm)

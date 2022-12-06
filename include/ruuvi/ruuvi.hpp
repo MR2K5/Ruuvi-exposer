@@ -24,7 +24,7 @@ struct BlePacket {
 
 class gattlib_error: public std::runtime_error {
 public:
-    gattlib_error(int err);
+    gattlib_error(int err, std::string const& msg = {});
     gattlib_error(gattlib_error const&)  = delete;
     void operator=(gattlib_error const&) = delete;
 };
