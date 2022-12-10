@@ -117,7 +117,7 @@ public:
 
         collectors.push_back({ BuildGauge()
                                    .Name("ruuvi_accelerayion_gs_total")
-                                   .Help("Total acceleration of ruuvitag, hypot(x, y, z")
+                                   .Help("Total acceleration of ruuvitag, hypot(x, y, z)")
                                    .Register(*registry),
                                &ruuvi_data_format_5::acceleration_total });
 
