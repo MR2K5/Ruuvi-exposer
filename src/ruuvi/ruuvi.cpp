@@ -5,31 +5,12 @@
 #include <future>
 #include <iomanip>
 
-#include <gattlib.h>
+#include "ble/receiver.hpp"
 
 using namespace ble;
 using namespace ruuvi;
 
 namespace {
-
-std::string gattlib_error_string(int err) {
-    assert(err != 0 && "throwing error with success code");
-    switch (err) {
-    case GATTLIB_INVALID_PARAMETER: return "Invalid parameter";
-    case GATTLIB_NOT_FOUND: return "Device not found";
-    case GATTLIB_OUT_OF_MEMORY: return "Out of memory";
-    case GATTLIB_NOT_SUPPORTED: return "Not supported";
-    case GATTLIB_DEVICE_ERROR: return "Device error";
-    case GATTLIB_ERROR_DBUS: return "Dbus error";
-    case GATTLIB_ERROR_BLUEZ: return "Bluez error";
-    case GATTLIB_ERROR_INTERNAL: return "Internal error";
-    default: return "Unknown error";
-    }
-}
-
-void check_gatt_errors(int err, std::string const& msg = {}) {
-    if (err != 0) { throw gattlib_error(err, msg); }
-}
 
 template<typename I> std::string n2hexstr(I w, size_t hex_len = sizeof(I) << 1) {
     static constexpr char digits[] = "0123456789ABCDEF";
@@ -41,80 +22,6 @@ template<typename I> std::string n2hexstr(I w, size_t hex_len = sizeof(I) << 1) 
 
 }  // namespace
 
-gattlib_error::gattlib_error(int err, std::string const& msg)
-    : std::runtime_error(
-        ("Gattlib error " + std::to_string(err) + ": ").append(gattlib_error_string(err))
-        + (msg.empty() ? "" : (" - " + msg))) {}
-
-class BleListener::Impl {
-public:
-    Impl(std::function<listener_callback> cb, std::string const& nm)
-        : callback_(std::move(cb)), adapter_(nullptr), adapter_name(nm) {
-        if (!callback_) { throw std::logic_error("BleListener initialized with mpty callback"); }
-    }
-
-    void start();
-    void stop() {
-        int err;
-        if (scan_enabled) {
-            err          = gattlib_adapter_scan_disable(adapter_);
-            scan_enabled = false;
-            check_gatt_errors(err, "gattlib_adapter_scan_disable");
-        }
-        if (adapter_open) {
-            err          = gattlib_adapter_close(adapter_);
-            adapter_open = false;
-            check_gatt_errors(err, "gattlib_adapter_close");
-        }
-    }
-
-private:
-    static void gatt_internal_cb(void* adapter, char const* addr, char const* name,
-                                 void* user_data) {
-        auto* impl = reinterpret_cast<BleListener::Impl*>(user_data);
-
-        gattlib_advertisement_data_t* data;
-        size_t data_count;
-        uint16_t man_id;
-        uint8_t* man_data;
-        size_t man_count;
-        int err = gattlib_get_advertisement_data_from_mac(adapter, addr, &data, &data_count,
-                                                          &man_id, &man_data, &man_count);
-        check_gatt_errors(err, "gattlib_get_advertisement_data_from_mac");
-
-        BlePacket packet;
-        packet.adapter = adapter;
-        packet.mac     = addr;
-        if (name) packet.device_name = name;
-        packet.manufacturer_id        = man_id;
-        packet.manufacturer_data      = man_data;
-        packet.manufacturer_data_size = man_count;
-        err = gattlib_get_rssi_from_mac(adapter, addr, &packet.signal_strength);
-        check_gatt_errors(err, "gattlib_get_rssi_from_mac");
-
-        impl->callback_(packet);
-    }
-
-    const std::function<listener_callback> callback_;
-    void* adapter_;
-    const std::string adapter_name;
-    std::atomic_bool adapter_open = false;
-    std::atomic_bool scan_enabled = false;
-};
-
-void BleListener::Impl::start() {
-    int err = 0;
-    err = gattlib_adapter_open(adapter_name.empty() ? nullptr : adapter_name.c_str(), &adapter_);
-    check_gatt_errors(err, "gattlib_get_rssi_from_mac");
-    adapter_open = true;
-
-    scan_enabled = true;
-    err          = gattlib_adapter_scan_enable_with_filter(
-                 adapter_, nullptr, 0, GATTLIB_DISCOVER_FILTER_NOTIFY_CHANGE, &gatt_internal_cb, 0, this);
-    scan_enabled = false;
-    check_gatt_errors(err, "gattlib_get_rssi_from_mac");
-}
-
 BleListener::BleListener(std::function<listener_callback> cb, std::string const& nm)
     : impl(std::make_unique<Impl>(std::move(cb), nm)) {}
 
@@ -123,7 +30,7 @@ BleListener::~BleListener() = default;
 void BleListener::start() {
     impl->start();
 }
-void BleListener::stop() {
+void BleListener::stop() noexcept {
     impl->stop();
 }
 
@@ -135,7 +42,7 @@ float ruuvi_data_format_5::acceleration_total() const {
 
 ruuvi_data_format_5 ruuvi::convert_data_format_5(BlePacket const& p, bool throw_on_error) {
     ruuvi_data_format_5 result;
-    auto* data = p.manufacturer_data;
+    auto& data = p.manufacturer_data;
 
     auto _throw = [throw_on_error, &result](std::string const& s) {
         if (throw_on_error) throw std::runtime_error("Data format 5 converison failed: " + s);
@@ -144,8 +51,8 @@ ruuvi_data_format_5 ruuvi::convert_data_format_5(BlePacket const& p, bool throw_
         result.contains_errors = true;
     };
 
-    if (p.manufacturer_data_size != 24) {
-        _throw("Expected data szie 24, got " + std::to_string(p.manufacturer_data_size));
+    if (p.manufacturer_data.size() != 24) {
+        _throw("Expected data szie 24, got " + std::to_string(p.manufacturer_data.size()));
     }
     if (data[0] != 0x05) _throw("Expected data format 5, got " + std::to_string(data[0]));
 
@@ -267,7 +174,9 @@ std::ostream& ble::operator<<(std::ostream& os, BlePacket const& p) {
 
     auto fmt = os.flags();
     os << std::showbase << std::hex << std::setfill('0') << std::setw(2) << std::right;
-    for (size_t i = 0; i < p.manufacturer_data_size; ++i) { os << +p.manufacturer_data[i] << ' '; }
+    for (size_t i = 0; i < p.manufacturer_data.size(); ++i) {
+        os << +p.manufacturer_data[i] << ' ';
+    }
     os.flags(fmt);
 
     os << "\n";

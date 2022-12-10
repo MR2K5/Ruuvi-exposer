@@ -44,10 +44,10 @@ set(OVERRIDE_CXX_STANDARD_FLAGS OFF CACHE BOOL "" FORCE)
 add_subdirectory(ext/prometheus-cpp)
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
-find_package(Gattlib REQUIRED MODULE)
 
 find_package(Filesystem REQUIRED)
 find_package(Threads REQUIRED)
+find_package(sdbus-c++ REQUIRED)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS TRUE CACHE INTERNAL "Export compile commands")
 
@@ -73,7 +73,7 @@ endif()
 
 
 add_executable(ruuvi-exposer "")
-target_link_libraries(ruuvi-exposer PRIVATE options Gattlib::Gattlib prometheus-cpp::pull Threads::Threads std::filesystem)
+target_link_libraries(ruuvi-exposer PRIVATE options prometheus-cpp::pull Threads::Threads std::filesystem SDBusCpp::sdbus-c++)
 
 
 add_subdirectory(src)

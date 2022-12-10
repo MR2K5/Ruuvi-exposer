@@ -13,31 +13,22 @@
 namespace ble {
 
 struct BlePacket {
-    void* adapter;
     std::string mac;
     std::string device_name;
     uint16_t manufacturer_id;
-    uint8_t* manufacturer_data;
+    std::vector<uint8_t> manufacturer_data;
     int16_t signal_strength;
-    size_t manufacturer_data_size;
-};
-
-class gattlib_error: public std::runtime_error {
-public:
-    gattlib_error(int err, std::string const& msg = {});
-    gattlib_error(gattlib_error const&)  = delete;
-    void operator=(gattlib_error const&) = delete;
 };
 
 using listener_callback = void(BlePacket const&);
 
 class BleListener {
 public:
-    explicit BleListener(std::function<listener_callback> f, std::string const& nm = {});
+    explicit BleListener(std::function<listener_callback> f, std::string const& nm = "hci0");
     ~BleListener();
 
     void start();
-    void stop();
+    void stop() noexcept;
 
 private:
     class Impl;
