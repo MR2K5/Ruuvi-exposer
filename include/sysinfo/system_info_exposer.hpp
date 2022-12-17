@@ -7,7 +7,7 @@
 
 namespace sys_info {
 
-class SystemInfo: public prometheus::Collectable {
+class SystemInfoCollector: public prometheus::Collectable {
     struct init {};
 
 public:
@@ -16,11 +16,11 @@ public:
     static constexpr char const* netstat_location               = "/proc/net/netstat";
     static constexpr char const* thremal_sesnsors_root_location = "/sys/class/thermal";
 
-    static std::shared_ptr<SystemInfo> create();
+    static std::shared_ptr<SystemInfoCollector> create();
     std::vector<prometheus::MetricFamily> Collect() const override;
 
-    SystemInfo(init);
-    ~SystemInfo();
+    SystemInfoCollector(init);
+    ~SystemInfoCollector();
 
 private:
     class Impl;

@@ -20,7 +20,7 @@ public:
     Ruuvitag()
         : listener(std::bind(&Ruuvitag::ble_callback, this, std::placeholders::_1)),
           exposer("0.0.0.0:9105"), rvexposer(std::make_shared<ruuvi::RuuviExposer>()),
-          sysinfo(sys_info::SystemInfo::create()) {
+          sysinfo(sys_info::SystemInfoCollector::create()) {
         exposer.RegisterCollectable(rvexposer);
         exposer.RegisterCollectable(sysinfo);
         log("Collectables registered");
@@ -38,7 +38,7 @@ public:
     }
 
     void ble_callback(ble::BlePacket const& p) {
-        log(p);
+        // log(p);
         if (p.manufacturer_id == 0x0499) {
             auto data = ruuvi::convert_data_format_5(p);
             log(data);
@@ -50,7 +50,7 @@ private:
     ble::BleListener listener;
     prometheus::Exposer exposer;
     std::shared_ptr<ruuvi::RuuviExposer> rvexposer;
-    std::shared_ptr<sys_info::SystemInfo> sysinfo;
+    std::shared_ptr<sys_info::SystemInfoCollector> sysinfo;
 };
 
 std::atomic_flag stop_all           = ATOMIC_FLAG_INIT;

@@ -25,8 +25,8 @@ using namespace sys_info;
 using namespace prometheus;
 using logging::log;
 
-std::shared_ptr<sys_info::SystemInfo> SystemInfo::create() {
-    return std::make_shared<SystemInfo>(init());
+std::shared_ptr<sys_info::SystemInfoCollector> SystemInfoCollector::create() {
+    return std::make_shared<SystemInfoCollector>(init());
 }
 
 namespace {
@@ -101,28 +101,28 @@ private:
     }
     std::optional<std::ifstream> open_file(std::string const& name);
     std::optional<std::ifstream> open_stat_file() {
-        static const bool has_file = test_file(SystemInfo::stat_location);
+        static const bool has_file = test_file(SystemInfoCollector::stat_location);
         if (!has_file) {
-            error("File check for ", SystemInfo::stat_location, " Failed previously");
+            error("File check for ", SystemInfoCollector::stat_location, " Failed previously");
             return std::nullopt;
         }
-        return open_file(SystemInfo::stat_location);
+        return open_file(SystemInfoCollector::stat_location);
     }
     std::optional<std::ifstream> open_meminfo_file() {
-        static const bool has_file = test_file(SystemInfo::meminfo_location);
+        static const bool has_file = test_file(SystemInfoCollector::meminfo_location);
         if (!has_file) {
-            error("File check for ", SystemInfo::meminfo_location, " Failed previously");
+            error("File check for ", SystemInfoCollector::meminfo_location, " Failed previously");
             return std::nullopt;
         }
-        return open_file(SystemInfo::meminfo_location);
+        return open_file(SystemInfoCollector::meminfo_location);
     }
     std::optional<std::ifstream> open_netstat_file() {
-        static const bool has_file = test_file(SystemInfo::netstat_location);
+        static const bool has_file = test_file(SystemInfoCollector::netstat_location);
         if (!has_file) {
-            error("File check for ", SystemInfo::netstat_location, " Failed previously");
+            error("File check for ", SystemInfoCollector::netstat_location, " Failed previously");
             return std::nullopt;
         }
-        return open_file(SystemInfo::netstat_location);
+        return open_file(SystemInfoCollector::netstat_location);
     }
 
     std::vector<thermal_sensor> const& find_sensors();
@@ -225,14 +225,15 @@ void system_info::read_meminfo() {
         typename decltype(lines)::iterator it;
         auto predicate = [&to_find](meminfo_line const& v) { return v.name == to_find; };
 
-#define MEMINFO_READ(value_name)                                                            \
-    to_find = #value_name;                                                                  \
-    it      = std::find_if(lines.begin(), lines.end(), predicate);                          \
-    if (it != lines.end()) {                                                                \
-        value_name = (*it).value;                                                           \
-        lines.erase(it);                                                                    \
-    } else {                                                                                \
-        error("Value named ", #value_name, " not found in ", SystemInfo::meminfo_location); \
+#define MEMINFO_READ(value_name)                                   \
+    to_find = #value_name;                                         \
+    it      = std::find_if(lines.begin(), lines.end(), predicate); \
+    if (it != lines.end()) {                                       \
+        value_name = (*it).value;                                  \
+        lines.erase(it);                                           \
+    } else {                                                       \
+        error("Value named ", #value_name, " not found in ",       \
+              SystemInfoCollector::meminfo_location);              \
     }
 
         MEMINFO_READ(MemTotal);
@@ -254,7 +255,7 @@ void system_info::read_meminfo() {
 
 #undef MEMINFO_READ
     } else {
-        error("Error while reading ", SystemInfo::meminfo_location);
+        error("Error while reading ", SystemInfoCollector::meminfo_location);
     }
 }
 
@@ -276,13 +277,14 @@ void system_info::read_stat() {
         long guest_nice = 0;
         *file >> id >> user >> nice >> system >> idle >> iowait >> irq >> softirq >> steal >> guest
             >> guest_nice;
-        if (!file->good() || id != "cpu") error("Error while parsing ", SystemInfo::stat_location);
+        if (!file->good() || id != "cpu")
+            error("Error while parsing ", SystemInfoCollector::stat_location);
         UserTime   = (user + nice) * user_hz;
         SystemTime = system * user_hz;
         IrqTime    = (irq + softirq) * user_hz;
         VmTime     = (steal + guest + guest_nice) * user_hz;
     } else {
-        error("Error while reading ", SystemInfo::stat_location);
+        error("Error while reading ", SystemInfoCollector::stat_location);
     }
 }
 
@@ -302,7 +304,7 @@ void system_info::read_netstat() {
 
         auto it = std::find_if(lines.begin(), lines.end(), pred);
         if (it == lines.end()) {
-            error("Couldn't  find IpExt in ", SystemInfo::netstat_location);
+            error("Couldn't  find IpExt in ", SystemInfoCollector::netstat_location);
             return;
         }
         // Find next IpExt row after labels
@@ -325,7 +327,7 @@ void system_info::read_netstat() {
             if (!ss.good() || id != "IpExt:") { error("Error while reading IpExt values"); }
 
         } else {
-            error("Couldn't find second IpExt row in ", SystemInfo::netstat_location);
+            error("Couldn't find second IpExt row in ", SystemInfoCollector::netstat_location);
         }
     }
 }
@@ -369,7 +371,7 @@ std::vector<thermal_sensor> const& system_info::find_sensors() {
     static std::vector<thermal_sensor> sensors = [this]() {
         std::vector<thermal_sensor> sensors;
 
-        std::filesystem::path path = SystemInfo::thremal_sesnsors_root_location;
+        std::filesystem::path path = SystemInfoCollector::thremal_sesnsors_root_location;
         for (auto const& entry : std::filesystem::directory_iterator(path)) {
             if (!entry.is_directory()) continue;
             std::string dirname = entry.path().filename().string();
@@ -493,7 +495,7 @@ auto BuildRawGauge() {
     return raw_gauge_builder();
 }
 
-class SystemInfo::Impl {
+class SystemInfoCollector::Impl {
 public:
     Impl() { create_gauges(); }
 
@@ -654,10 +656,10 @@ private:
     }
 };
 
-SystemInfo::SystemInfo(init): impl(std::make_unique<Impl>()) {}
+SystemInfoCollector::SystemInfoCollector(init): impl(std::make_unique<Impl>()) {}
 
-SystemInfo::~SystemInfo() = default;
+SystemInfoCollector::~SystemInfoCollector() = default;
 
-std::vector<MetricFamily> SystemInfo::Collect() const {
+std::vector<MetricFamily> SystemInfoCollector::Collect() const {
     return impl->Collect();
 }
