@@ -29,6 +29,7 @@ public:
 
     void start();
     void stop() noexcept;
+    void blacklist(std::string const& mac);
 
 private:
     class Impl;

@@ -47,16 +47,49 @@ void BleListener::Impl::start() {
     if (exited_with_error) throw std::runtime_error("BleListener exited with error");
 }
 
+void BleListener::Impl::blacklist(const std::string& mac) {
+    log("Blacklisting ", mac);
+    {
+        std::lock_guard g(blist_mtx);
+        if (std::find(blist.begin(), blist.end(), mac) != blist.end())  // Duplicate
+            return;
+        blist.push_back(mac);
+    }
+
+    std::lock_guard g(listeners_mtx);
+    for (auto& [key, val] : listeners) {
+        if (val.second == mac) {
+            listeners.erase(key);
+            break;
+        }
+    }
+}
+
 void BleListener::Impl::add_cb(
     sdbus::ObjectPath const& obj,
-    std::map<std::string, std::map<std::string, sdbus::Variant>> const&) {
+    std::map<std::string, std::map<std::string, sdbus::Variant>> const& interfaces) {
 
     try {
         if (listeners.find(obj) != listeners.end()) { return; }
 
-        logging::log("Added ", obj);
-
         auto properties = sdbus::createProxy(*connection, "org.bluez", obj);
+        // Get mac
+        sdbus::Variant macv;
+        properties->callMethod("Get")
+            .onInterface("org.freedesktop.DBus.Properties")
+            .withArguments("org.bluez.Device1", "Address")
+            .storeResultsTo(macv);
+        auto mac = macv.get<std::string>();
+        {
+            std::lock_guard g(blist_mtx);
+            if (std::find(blist.begin(), blist.end(), mac) != blist.end()) {
+                // mac blacklisted
+                log("Can't add ", mac, ", blacklisted");
+                return;
+            }
+        }
+
+        logging::log("Added ", obj);
 
         properties->uponSignal("PropertiesChanged")
             .onInterface("org.freedesktop.DBus.Properties")
@@ -70,7 +103,7 @@ void BleListener::Impl::add_cb(
 
         {
             std::lock_guard g(listeners_mtx);
-            listeners.insert({ obj, std::move(properties) });
+            listeners.insert({ obj, std::make_pair(std::move(properties), mac) });
         }
         emit_packet(obj);
     } catch (sdbus::Error const& e) {
@@ -146,7 +179,7 @@ void BleListener::Impl::emit_packet(const sdbus::ObjectPath& obj) {
     BlePacket packet;
     const std::string intf = "org.bluez.Device1";
 
-    auto& proxy = listeners[obj];
+    auto& proxy = listeners[obj].first;
 
     std::map<std::string, sdbus::Variant> properties_;
     proxy->callMethod("GetAll")

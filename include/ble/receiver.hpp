@@ -15,6 +15,8 @@ public:
     void stop() noexcept;
     void start();
 
+    void blacklist(std::string const& mac);
+
     bool is_discovering() const;
 
 private:
@@ -25,8 +27,11 @@ private:
     std::unique_ptr<sdbus::IProxy> manager;
     std::unique_ptr<sdbus::IProxy> objmanager;
 
-    std::map<sdbus::ObjectPath, std::unique_ptr<sdbus::IProxy>> listeners;
+    std::map<sdbus::ObjectPath, std::pair<std::unique_ptr<sdbus::IProxy>, std::string>> listeners;
     std::mutex listeners_mtx;
+
+    std::vector<std::string> blist;
+    std::mutex blist_mtx;
 
     std::atomic_bool should_discover = false;
     std::atomic_bool exited_with_error = false;

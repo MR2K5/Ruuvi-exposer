@@ -34,6 +34,10 @@ void BleListener::stop() noexcept {
     impl->stop();
 }
 
+void BleListener::blacklist(const std::string& mac) {
+    impl->blacklist(mac);
+}
+
 // ------------------------------------------------------------------------------------
 
 float ruuvi_data_format_5::acceleration_total() const {

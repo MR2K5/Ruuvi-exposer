@@ -41,8 +41,10 @@ public:
         // log(p);
         if (p.manufacturer_id == 0x0499) {
             auto data = ruuvi::convert_data_format_5(p);
-            log(data);
+            //            log(data);
             rvexposer->update(data);
+        } else {
+            listener.blacklist(p.mac);
         }
     }
 
