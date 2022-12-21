@@ -1,4 +1,47 @@
 {
+  "__inputs": [
+    {
+      "name": "DS_PROMETHEUS",
+      "label": "Prometheus",
+      "description": "",
+      "type": "datasource",
+      "pluginId": "prometheus",
+      "pluginName": "Prometheus"
+    },
+    {
+      "name": "DS_EXPRESSION",
+      "label": "Expression",
+      "description": "",
+      "type": "datasource",
+      "pluginId": "__expr__"
+    }
+  ],
+  "__elements": {},
+  "__requires": [
+    {
+      "type": "datasource",
+      "id": "__expr__",
+      "version": "1.0.0"
+    },
+    {
+      "type": "grafana",
+      "id": "grafana",
+      "name": "Grafana",
+      "version": "9.0.3"
+    },
+    {
+      "type": "datasource",
+      "id": "prometheus",
+      "name": "Prometheus",
+      "version": "1.0.0"
+    },
+    {
+      "type": "panel",
+      "id": "timeseries",
+      "name": "Time series",
+      "version": ""
+    }
+  ],
   "annotations": {
     "list": [
       {
@@ -24,14 +67,14 @@
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
-  "id": 3,
+  "id": null,
   "links": [],
   "liveNow": false,
   "panels": [
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "KBF3ytRRk"
+        "uid": "${DS_PROMETHEUS}"
       },
       "fieldConfig": {
         "defaults": {
@@ -106,7 +149,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "KBF3ytRRk"
+            "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "builder",
           "expr": "rate(sysinfo_network_out_bytes[$__rate_interval])",
@@ -121,7 +164,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "KBF3ytRRk"
+        "uid": "${DS_PROMETHEUS}"
       },
       "fieldConfig": {
         "defaults": {
@@ -196,7 +239,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "KBF3ytRRk"
+            "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "builder",
           "expr": "rate(sysinfo_network_in_bytes[$__rate_interval])",
@@ -211,7 +254,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "KBF3ytRRk"
+        "uid": "${DS_PROMETHEUS}"
       },
       "fieldConfig": {
         "defaults": {
@@ -286,7 +329,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "KBF3ytRRk"
+            "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "builder",
           "expr": "rate(sysinfo_cpu_user_seconds[$__rate_interval])",
@@ -297,9 +340,8 @@
         },
         {
           "datasource": {
-            "name": "Expression",
             "type": "__expr__",
-            "uid": "__expr__"
+            "uid": "${DS_EXPRESSION}"
           },
           "downsampler": "mean",
           "expression": "$system + $User + $Irq",
@@ -311,7 +353,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "KBF3ytRRk"
+            "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "builder",
           "expr": "rate(sysinfo_cpu_system_seconds[$__rate_interval])",
@@ -323,7 +365,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "KBF3ytRRk"
+            "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "builder",
           "expr": "rate(sysinfo_cpu_irq_seconds[$__rate_interval])",
@@ -339,7 +381,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "KBF3ytRRk"
+        "uid": "${DS_PROMETHEUS}"
       },
       "fieldConfig": {
         "defaults": {
@@ -414,7 +456,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "KBF3ytRRk"
+            "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "builder",
           "expr": "sysinfo_sensor_temperature_celsius",
@@ -429,7 +471,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "KBF3ytRRk"
+        "uid": "${DS_PROMETHEUS}"
       },
       "fieldConfig": {
         "defaults": {
@@ -504,7 +546,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "KBF3ytRRk"
+            "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "builder",
           "expr": "sysinfo_swap_size_bytes",
@@ -516,7 +558,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "KBF3ytRRk"
+            "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "builder",
           "expr": "sysinfo_swap_free_bytes",
@@ -527,9 +569,8 @@
         },
         {
           "datasource": {
-            "name": "Expression",
             "type": "__expr__",
-            "uid": "__expr__"
+            "uid": "${DS_EXPRESSION}"
           },
           "expression": "$A - $B",
           "hide": false,
@@ -543,7 +584,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "KBF3ytRRk"
+        "uid": "${DS_PROMETHEUS}"
       },
       "description": "Ram usage as total -  free - cached - buffered - shared",
       "fieldConfig": {
@@ -619,7 +660,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "KBF3ytRRk"
+            "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "builder",
           "expr": "sysinfo_memory_free_bytes",
@@ -631,7 +672,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "KBF3ytRRk"
+            "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "builder",
           "expr": "sysinfo_memory_size_bytes",
@@ -643,7 +684,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "KBF3ytRRk"
+            "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "builder",
           "expr": "sysinfo_memory_buffers_bytes",
@@ -655,7 +696,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "KBF3ytRRk"
+            "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "builder",
           "expr": "sysinfo_memory_cached_bytes",
@@ -666,9 +707,8 @@
         },
         {
           "datasource": {
-            "name": "Expression",
             "type": "__expr__",
-            "uid": "__expr__"
+            "uid": "${DS_EXPRESSION}"
           },
           "expression": "$Total - $Free - $Buffered - $Cached - $Shared",
           "hide": false,
@@ -678,7 +718,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "KBF3ytRRk"
+            "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "builder",
           "expr": "sysinfo_memory_shared_bytes",
@@ -694,7 +734,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "KBF3ytRRk"
+        "uid": "${DS_PROMETHEUS}"
       },
       "description": "This is a relatively temporary storage for raw disk blocks",
       "fieldConfig": {
@@ -735,8 +775,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": null
+                "color": "green"
               },
               {
                 "color": "red",
@@ -770,7 +809,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "KBF3ytRRk"
+            "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "builder",
           "expr": "sysinfo_memory_buffers_bytes",
@@ -785,7 +824,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "KBF3ytRRk"
+        "uid": "${DS_PROMETHEUS}"
       },
       "fieldConfig": {
         "defaults": {
@@ -825,8 +864,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": null
+                "color": "green"
               },
               {
                 "color": "red",
@@ -860,7 +898,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "KBF3ytRRk"
+            "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "builder",
           "expr": "sysinfo_memory_cached_bytes",
@@ -875,7 +913,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "KBF3ytRRk"
+        "uid": "${DS_PROMETHEUS}"
       },
       "fieldConfig": {
         "defaults": {
@@ -949,7 +987,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "KBF3ytRRk"
+            "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "builder",
           "expr": "sysinfo_processes",
@@ -964,7 +1002,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "KBF3ytRRk"
+        "uid": "${DS_PROMETHEUS}"
       },
       "description": "Amount of shared memory",
       "fieldConfig": {
@@ -1040,7 +1078,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "KBF3ytRRk"
+            "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "builder",
           "expr": "sysinfo_memory_shared_bytes",
