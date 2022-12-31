@@ -43,6 +43,9 @@ public:
             auto data = ruuvi::convert_data_format_5(p);
             //            log(data);
             rvexposer->update(data);
+            if (data.contains_errors) {
+                log("Ruuvitag message errors from ", data.mac, ": ", data.error_msg);
+            }
         } else {
             listener.blacklist(p.mac);
         }
