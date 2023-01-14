@@ -87,7 +87,7 @@ struct system_info {
     static std::atomic_llong errors_count;
     double get_errors_count() const { return errors_count; }
 
-    static std::unique_ptr<const system_info> create();
+    static std::unique_ptr<system_info const> create();
 
 private:
     bool test_file(std::string const& name) {
@@ -101,25 +101,31 @@ private:
     }
     std::optional<std::ifstream> open_file(std::string const& name);
     std::optional<std::ifstream> open_stat_file() {
-        static const bool has_file = test_file(SystemInfoCollector::stat_location);
+        static bool const has_file =
+            test_file(SystemInfoCollector::stat_location);
         if (!has_file) {
-            error("File check for ", SystemInfoCollector::stat_location, " Failed previously");
+            error("File check for ", SystemInfoCollector::stat_location,
+                  " Failed previously");
             return std::nullopt;
         }
         return open_file(SystemInfoCollector::stat_location);
     }
     std::optional<std::ifstream> open_meminfo_file() {
-        static const bool has_file = test_file(SystemInfoCollector::meminfo_location);
+        static bool const has_file =
+            test_file(SystemInfoCollector::meminfo_location);
         if (!has_file) {
-            error("File check for ", SystemInfoCollector::meminfo_location, " Failed previously");
+            error("File check for ", SystemInfoCollector::meminfo_location,
+                  " Failed previously");
             return std::nullopt;
         }
         return open_file(SystemInfoCollector::meminfo_location);
     }
     std::optional<std::ifstream> open_netstat_file() {
-        static const bool has_file = test_file(SystemInfoCollector::netstat_location);
+        static bool const has_file =
+            test_file(SystemInfoCollector::netstat_location);
         if (!has_file) {
-            error("File check for ", SystemInfoCollector::netstat_location, " Failed previously");
+            error("File check for ", SystemInfoCollector::netstat_location,
+                  " Failed previously");
             return std::nullopt;
         }
         return open_file(SystemInfoCollector::netstat_location);
@@ -148,7 +154,7 @@ private:
     template<class... As> void error(As&&... as) {
         // Increment only first time
         if (has_errors == false) {
-            has_errors = true;
+            has_errors   = true;
             errors_count += 1;
         }
 
@@ -172,13 +178,15 @@ std::optional<std::ifstream> system_info::open_file(std::string const& name) {
             error("Failed to open ", name);
             opt.reset();
         }
-    } catch (std::exception& e) { error("Exception while opening ", name, ": ", e.what()); }
+    } catch (std::exception& e) {
+        error("Exception while opening ", name, ": ", e.what());
+    }
 
     return opt;
 }
 
 double system_info::get_clock_hz() {
-    static const double v = []() {
+    static double const v = []() {
         long ticks_per_s = sysconf(_SC_CLK_TCK);
         if (ticks_per_s == -1) {
             log("Failed to read _SC_CLK_TCK: ", std::strerror(errno));
@@ -190,7 +198,7 @@ double system_info::get_clock_hz() {
     return v;
 }
 
-double system_info::get_unit(const std::string& u) {
+double system_info::get_unit(std::string const& u) {
     if (u == "kB") return 1000;
     if (u == "B" || u == "") return 1;
     if (u == "MB") return 1'000'000;
@@ -198,7 +206,7 @@ double system_info::get_unit(const std::string& u) {
     return 1;
 }
 
-std::unique_ptr<const system_info> system_info::create() {
+std::unique_ptr<system_info const> system_info::create() {
     std::unique_ptr<system_info> info(new system_info{});
     try {
         info->read_meminfo();
@@ -223,17 +231,19 @@ void system_info::read_meminfo() {
 
         std::string_view to_find;
         typename decltype(lines)::iterator it;
-        auto predicate = [&to_find](meminfo_line const& v) { return v.name == to_find; };
+        auto predicate = [&to_find](meminfo_line const& v) {
+            return v.name == to_find;
+        };
 
-#define MEMINFO_READ(value_name)                                   \
-    to_find = #value_name;                                         \
-    it      = std::find_if(lines.begin(), lines.end(), predicate); \
-    if (it != lines.end()) {                                       \
-        value_name = (*it).value;                                  \
-        lines.erase(it);                                           \
-    } else {                                                       \
-        error("Value named ", #value_name, " not found in ",       \
-              SystemInfoCollector::meminfo_location);              \
+#define MEMINFO_READ(value_name)                                               \
+    to_find = #value_name;                                                     \
+    it      = std::find_if(lines.begin(), lines.end(), predicate);             \
+    if (it != lines.end()) {                                                   \
+        value_name = (*it).value;                                              \
+        lines.erase(it);                                                       \
+    } else {                                                                   \
+        error("Value named ", #value_name, " not found in ",                   \
+              SystemInfoCollector::meminfo_location);                          \
     }
 
         MEMINFO_READ(MemTotal);
@@ -261,7 +271,7 @@ void system_info::read_meminfo() {
 
 void system_info::read_stat() {
     auto file            = open_stat_file();
-    const double user_hz = get_clock_hz();
+    double const user_hz = get_clock_hz();
 
     if (file.has_value() && file->good() && user_hz > 0) {
         std::string id;
@@ -275,8 +285,8 @@ void system_info::read_stat() {
         long steal      = 0;
         long guest      = 0;
         long guest_nice = 0;
-        *file >> id >> user >> nice >> system >> idle >> iowait >> irq >> softirq >> steal >> guest
-            >> guest_nice;
+        *file >> id >> user >> nice >> system >> idle >> iowait >> irq
+            >> softirq >> steal >> guest >> guest_nice;
         if (!file->good() || id != "cpu")
             error("Error while parsing ", SystemInfoCollector::stat_location);
         UserTime   = (user + nice) * user_hz;
@@ -304,7 +314,8 @@ void system_info::read_netstat() {
 
         auto it = std::find_if(lines.begin(), lines.end(), pred);
         if (it == lines.end()) {
-            error("Couldn't  find IpExt in ", SystemInfoCollector::netstat_location);
+            error("Couldn't  find IpExt in ",
+                  SystemInfoCollector::netstat_location);
             return;
         }
         // Find next IpExt row after labels
@@ -318,16 +329,19 @@ void system_info::read_netstat() {
             unsigned long out_mcast  = 0;
 
             std::stringstream ss(*it);
-            ss >> id >> u >> u >> u >> u >> u >> u >> in_octets >> out_octets >> in_mcast
-                >> out_mcast;
+            ss >> id >> u >> u >> u >> u >> u >> u >> in_octets >> out_octets
+                >> in_mcast >> out_mcast;
 
             InOctets  = in_octets + in_mcast;
             OutOctets = out_octets + out_mcast;
 
-            if (!ss.good() || id != "IpExt:") { error("Error while reading IpExt values"); }
+            if (!ss.good() || id != "IpExt:") {
+                error("Error while reading IpExt values");
+            }
 
         } else {
-            error("Couldn't find second IpExt row in ", SystemInfoCollector::netstat_location);
+            error("Couldn't find second IpExt row in ",
+                  SystemInfoCollector::netstat_location);
         }
     }
 }
@@ -345,9 +359,12 @@ void system_info::get_sysinfo() {
 
 void system_info::get_loadavg() {
     int written = getloadavg(Loads, 3);
-    if (written != 3) { error("Failed to call getloadavg(): returned ", written); }
+    if (written != 3) {
+        error("Failed to call getloadavg(): returned ", written);
+    }
 }
-std::list<system_info::meminfo_line> system_info::parse_lines(std::istream& is) {
+std::list<system_info::meminfo_line>
+system_info::parse_lines(std::istream& is) {
     std::list<meminfo_line> lines;
 
     std::string line;
@@ -371,7 +388,8 @@ std::vector<thermal_sensor> const& system_info::find_sensors() {
     static std::vector<thermal_sensor> sensors = [this]() {
         std::vector<thermal_sensor> sensors;
 
-        std::filesystem::path path = SystemInfoCollector::thremal_sesnsors_root_location;
+        std::filesystem::path path =
+            SystemInfoCollector::thremal_sesnsors_root_location;
         for (auto const& entry : std::filesystem::directory_iterator(path)) {
             if (!entry.is_directory()) continue;
             std::string dirname = entry.path().filename().string();
@@ -383,7 +401,8 @@ std::vector<thermal_sensor> const& system_info::find_sensors() {
                 if (type.good()) {
                     type >> sensor.type;
                 } else {
-                    error("Failed to read thermal type file ", entry.path() / "type");
+                    error("Failed to read thermal type file ",
+                          entry.path() / "type");
                 }
             }
         }
@@ -408,7 +427,8 @@ void system_info::read_thermal_sensors() {
             temperature_file >> value;
             info.value_celsius = value * thermal_sensor::step_size;
         } else {
-            error("Failed to open temperature file ", sensor.temperature_path, " for ", info.type);
+            error("Failed to open temperature file ", sensor.temperature_path,
+                  " for ", info.type);
         }
         SensorTemps.push_back(info);
     }
@@ -425,9 +445,10 @@ public:
     MetricFamily Collect(system_info const& info) const {
         auto m   = gauge;
         m.metric = callback(info);
+
         m.metric.reserve(m.metric.size() + labels.size());
         for (auto& [name, value] : labels) {
-            for (auto& n : m.metric) { n.label.push_back({ name, value }); }
+            for (auto& n : m.metric) { n.label.push_back({name, value}); }
         }
         return m;
     }
@@ -467,11 +488,11 @@ public:
 
     operator raw_gauge() && {
         raw_gauge rg;
-        rg.callback   = std::move(callback);
         rg.gauge.name = std::move(name);
         rg.gauge.help = std::move(help);
         rg.gauge.type = type;
         rg.labels     = std::move(labels);
+        rg.callback   = std::move(callback);
         return rg;
     }
 
@@ -484,16 +505,16 @@ private:
 };
 
 template<class F> auto to_double_single(F&& f) {
-    return [fn = std::forward<F>(f)](system_info const& i) {
-        ClientMetric m;
+    return [fn = std::forward<F>(f)](
+               system_info const& i) -> std::vector<ClientMetric> {
+        std::vector<ClientMetric> ret;
+        ClientMetric& m = ret.emplace_back();
         m.gauge.value = static_cast<double>(std::invoke(fn, i));
-        return std::vector{ m };
+        return ret;
     };
 }
 
-auto BuildRawGauge() {
-    return raw_gauge_builder();
-}
+auto BuildRawGauge() { return raw_gauge_builder(); }
 
 class SystemInfoCollector::Impl {
 public:
@@ -514,73 +535,84 @@ private:
 
     void create_gauges() {
         // ------ memstat --------
-        gauges.push_back(BuildRawGauge()
-                             .Name("sysinfo_memory_size_bytes")
-                             .Help("Total memory available")
-                             .Type(MetricType::Gauge)
-                             .Callback(to_double_single(&system_info::MemTotal)));
-        gauges.push_back(BuildRawGauge()
-                             .Name("sysinfo_memory_free_bytes")
-                             .Help("Free memory (excluding buffered and cached memory)")
-                             .Type(MetricType::Gauge)
-                             .Callback(to_double_single(&system_info::MemFree)));
+        gauges.push_back(
+            BuildRawGauge()
+                .Name("sysinfo_memory_size_bytes")
+                .Help("Total memory available")
+                .Type(MetricType::Gauge)
+                .Callback(to_double_single(&system_info::MemTotal)));
+        gauges.push_back(
+            BuildRawGauge()
+                .Name("sysinfo_memory_free_bytes")
+                .Help("Free memory (excluding buffered and cached memory)")
+                .Type(MetricType::Gauge)
+                .Callback(to_double_single(&system_info::MemFree)));
         gauges.push_back(
             BuildRawGauge()
                 .Name("sysinfo_memory_available_bytes")
-                .Help("Estimated available memory for starting new applications, without swapping")
+                .Help("Estimated available memory for starting new "
+                      "applications, without swapping")
                 .Type(MetricType::Gauge)
                 .Callback(to_double_single(&system_info::MemAvailable)));
-        gauges.push_back(BuildRawGauge()
-                             .Name("sysinfo_memory_buffers_bytes")
-                             .Help("Temporary storage for raw disk blocks")
-                             .Type(MetricType::Gauge)
-                             .Callback(to_double_single(&system_info::Buffers)));
-        gauges.push_back(BuildRawGauge()
-                             .Name("sysinfo_memory_cached_bytes")
-                             .Help("Cached files in RAM (page cache), exluding swap cache")
-                             .Type(MetricType::Gauge)
-                             .Callback(to_double_single(&system_info::Cached)));
+        gauges.push_back(
+            BuildRawGauge()
+                .Name("sysinfo_memory_buffers_bytes")
+                .Help("Temporary storage for raw disk blocks")
+                .Type(MetricType::Gauge)
+                .Callback(to_double_single(&system_info::Buffers)));
+        gauges.push_back(
+            BuildRawGauge()
+                .Name("sysinfo_memory_cached_bytes")
+                .Help("Cached files in RAM (page cache), exluding swap cache")
+                .Type(MetricType::Gauge)
+                .Callback(to_double_single(&system_info::Cached)));
         gauges.push_back(
             BuildRawGauge()
                 .Name("sysinfo_swap_cache_bytes")
-                .Help("Memory that was swapped out and back in but is still also in the swap file")
+                .Help("Memory that was swapped out and back in but is still "
+                      "also in the swap file")
                 .Type(MetricType::Gauge)
                 .Callback(to_double_single(&system_info::SwapCached)));
+        gauges.push_back(BuildRawGauge()
+                             .Name("sysinfo_memory_active_bytes")
+                             .Help("Memory that was used more recently, not "
+                                   "reclaimed unless absolutely necessary")
+                             .Type(MetricType::Gauge)
+                             .Callback(to_double_single(&system_info::Active)));
         gauges.push_back(
             BuildRawGauge()
                 .Name("sysinfo_memory_active_bytes")
-                .Help(
-                    "Memory that was used more recently, not reclaimed unless absolutely necessary")
+                .Help("Memory that was used less recently, likely to be "
+                      "reclaimed")
                 .Type(MetricType::Gauge)
-                .Callback(to_double_single(&system_info::Active)));
-        gauges.push_back(BuildRawGauge()
-                             .Name("sysinfo_memory_active_bytes")
-                             .Help("Memory that was used less recently, likely to be reclaimed")
-                             .Type(MetricType::Gauge)
-                             .Callback(to_double_single(&system_info::Inactive)));
-        gauges.push_back(BuildRawGauge()
-                             .Name("sysinfo_swap_size_bytes")
-                             .Help("Total swap memory available")
-                             .Type(MetricType::Gauge)
-                             .Callback(to_double_single(&system_info::SwapTotal)));
-        gauges.push_back(BuildRawGauge()
-                             .Name("sysinfo_swap_free_bytes")
-                             .Help("Amount of unused swap memory")
-                             .Type(MetricType::Gauge)
-                             .Callback(to_double_single(&system_info::SwapFree)));
+                .Callback(to_double_single(&system_info::Inactive)));
+        gauges.push_back(
+            BuildRawGauge()
+                .Name("sysinfo_swap_size_bytes")
+                .Help("Total swap memory available")
+                .Type(MetricType::Gauge)
+                .Callback(to_double_single(&system_info::SwapTotal)));
+        gauges.push_back(
+            BuildRawGauge()
+                .Name("sysinfo_swap_free_bytes")
+                .Help("Amount of unused swap memory")
+                .Type(MetricType::Gauge)
+                .Callback(to_double_single(&system_info::SwapFree)));
 
         // ------ sysinfo() --------
 
-        gauges.push_back(BuildRawGauge()
-                             .Name("sysinfo_processes")
-                             .Help("Amount of running processes")
-                             .Type(MetricType::Gauge)
-                             .Callback(to_double_single(&system_info::Processes)));
-        gauges.push_back(BuildRawGauge()
-                             .Name("sysinfo_memory_shared_bytes")
-                             .Help("Amount of shared memory")
-                             .Type(MetricType::Gauge)
-                             .Callback(to_double_single(&system_info::MemShared)));
+        gauges.push_back(
+            BuildRawGauge()
+                .Name("sysinfo_processes")
+                .Help("Amount of running processes")
+                .Type(MetricType::Gauge)
+                .Callback(to_double_single(&system_info::Processes)));
+        gauges.push_back(
+            BuildRawGauge()
+                .Name("sysinfo_memory_shared_bytes")
+                .Help("Amount of shared memory")
+                .Type(MetricType::Gauge)
+                .Callback(to_double_single(&system_info::MemShared)));
 
         // ------ loadavg() --------
 
@@ -589,53 +621,60 @@ private:
                 .Name("sysinfo_avg_load")
                 .Help("1 minute cpu load average")
                 .Type(MetricType::Gauge)
-                .Callback(to_double_single([](system_info const& i) { return i.Loads[0]; })));
+                .Callback(to_double_single(
+                    [](system_info const& i) { return i.Loads[0]; })));
 
         // ------ /proc/stat --------
 
-        gauges.push_back(BuildRawGauge()
-                             .Name("sysinfo_cpu_user_seconds")
-                             .Help("Time spent in user mode since boot")
-                             .Type(MetricType::Gauge)
-                             .Callback(to_double_single(&system_info::UserTime)));
-        gauges.push_back(BuildRawGauge()
-                             .Name("sysinfo_cpu_system_seconds")
-                             .Help("Time spent in system mode since boot")
-                             .Type(MetricType::Gauge)
-                             .Callback(to_double_single(&system_info::SystemTime)));
-        gauges.push_back(BuildRawGauge()
-                             .Name("sysinfo_cpu_irq_seconds")
-                             .Help("Time spent servicing interrupts since boot")
-                             .Type(MetricType::Gauge)
-                             .Callback(to_double_single(&system_info::IrqTime)));
-        gauges.push_back(BuildRawGauge()
-                             .Name("sysinfo_cpu_vm_seconds")
-                             .Help("Time spent in virtual machines since boot")
-                             .Type(MetricType::Gauge)
-                             .Callback(to_double_single(&system_info::VmTime)));
+        gauges.push_back(
+            BuildRawGauge()
+                .Name("sysinfo_cpu_user_seconds")
+                .Help("Time spent in user mode since boot")
+                .Type(MetricType::Gauge)
+                .Callback(to_double_single(&system_info::UserTime)));
+        gauges.push_back(
+            BuildRawGauge()
+                .Name("sysinfo_cpu_system_seconds")
+                .Help("Time spent in system mode since boot")
+                .Type(MetricType::Gauge)
+                .Callback(to_double_single(&system_info::SystemTime)));
+        gauges.push_back(
+            BuildRawGauge()
+                .Name("sysinfo_cpu_irq_seconds")
+                .Help("Time spent servicing interrupts since boot")
+                .Type(MetricType::Gauge)
+                .Callback(to_double_single(&system_info::IrqTime)));
         gauges.push_back(BuildRawGauge()
                              .Name("sysinfo_cpu_vm_seconds")
                              .Help("Time spent in virtual machines since boot")
                              .Type(MetricType::Gauge)
                              .Callback(to_double_single(&system_info::VmTime)));
         gauges.push_back(BuildRawGauge()
-                             .Name("sysinfo_errors_count")
-                             .Help("Number of scrapes containing errors")
+                             .Name("sysinfo_cpu_vm_seconds")
+                             .Help("Time spent in virtual machines since boot")
                              .Type(MetricType::Gauge)
-                             .Callback(to_double_single(&system_info::get_errors_count)));
+                             .Callback(to_double_single(&system_info::VmTime)));
+        gauges.push_back(
+            BuildRawGauge()
+                .Name("sysinfo_errors_count")
+                .Help("Number of scrapes containing errors")
+                .Type(MetricType::Gauge)
+                .Callback(to_double_single(&system_info::get_errors_count)));
 
         // ------ /proc/net/netsat --------
 
-        gauges.push_back(BuildRawGauge()
-                             .Name("sysinfo_network_in_bytes")
-                             .Help("Count of reveived octets (bytes) since boot")
-                             .Type(MetricType::Gauge)
-                             .Callback(to_double_single(&system_info::InOctets)));
-        gauges.push_back(BuildRawGauge()
-                             .Name("sysinfo_network_out_bytes")
-                             .Help("Count of sent octets (bytes) since boot")
-                             .Type(MetricType::Gauge)
-                             .Callback(to_double_single(&system_info::OutOctets)));
+        gauges.push_back(
+            BuildRawGauge()
+                .Name("sysinfo_network_in_bytes")
+                .Help("Count of reveived octets (bytes) since boot")
+                .Type(MetricType::Gauge)
+                .Callback(to_double_single(&system_info::InOctets)));
+        gauges.push_back(
+            BuildRawGauge()
+                .Name("sysinfo_network_out_bytes")
+                .Help("Count of sent octets (bytes) since boot")
+                .Type(MetricType::Gauge)
+                .Callback(to_double_single(&system_info::OutOctets)));
 
         // sys/class/thermal/
         auto parse_sensors = [](system_info const& info) {
@@ -644,19 +683,21 @@ private:
             for (auto& sensor : info.SensorTemps) {
                 ClientMetric& m = metrics.emplace_back();
                 m.gauge.value   = sensor.value_celsius;
-                m.label.push_back({ "type", sensor.type });
+                m.label.push_back({"type", sensor.type});
             }
             return metrics;
         };
-        gauges.push_back(BuildRawGauge()
-                             .Name("sysinfo_sensor_temperature_celsius")
-                             .Help("Temperature of a sensor with its type as a label")
-                             .Type(MetricType::Gauge)
-                             .Callback(parse_sensors));
+        gauges.push_back(
+            BuildRawGauge()
+                .Name("sysinfo_sensor_temperature_celsius")
+                .Help("Temperature of a sensor with its type as a label")
+                .Type(MetricType::Gauge)
+                .Callback(parse_sensors));
     }
 };
 
-SystemInfoCollector::SystemInfoCollector(init): impl(std::make_unique<Impl>()) {}
+SystemInfoCollector::SystemInfoCollector(init)
+    : impl(std::make_unique<Impl>()) {}
 
 SystemInfoCollector::~SystemInfoCollector() = default;
 

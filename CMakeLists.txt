@@ -71,18 +71,41 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
     target_link_options(options INTERFACE -stdlib=libstdc++)
 endif()
 
+option(BUILD_SYSINFO_EXPOSER "Build the system info exposer, which requires /proc and /sys support" ON)
 
+add_library(Ble "")
+add_library(Ruuvi "")
 add_executable(ruuvi-exposer "")
-target_link_libraries(ruuvi-exposer PRIVATE options prometheus-cpp::pull Threads::Threads std::filesystem SDBusCpp::sdbus-c++)
+if (BUILD_SYSINFO_EXPOSER)
+    add_library(Sysinfo "")
+    target_compile_definitions(ruuvi-exposer PRIVATE ENABLE_SYSINFO_EXPOSER)
+    target_link_libraries(Sysinfo PUBLIC prometheus-cpp::core)
+endif()
+
+target_link_libraries(Ble PUBLIC options SDBusCpp::sdbus-c++)
+target_link_libraries(Ruuvi PRIVATE options PUBLIC prometheus-cpp::pull $<$<BOOL:${BUILD_SYSINFO_EXPOSER}>: Sysinfo>)
+
+target_link_libraries(ruuvi-exposer PRIVATE options Ruuvi Ble)
 
 
 add_subdirectory(src)
 add_subdirectory(include)
 
-set_target_properties(ruuvi-exposer PROPERTIES INSTALL_RPATH ${CMAKE_INSTALL_PREFIX}/lib)
-install(TARGETS ruuvi-exposer
-    LIBRARY
-    ARCHIVE
-    RUNTIME
-    FILE_SET HEADERS
-)
+set(LIBPATH ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR})
+
+function (install_tgt name)
+    set_target_properties(${name} PROPERTIES INSTALL_RPATH ${LIBPATH})
+    install(TARGETS ${name}
+        LIBRARY
+        ARCHIVE
+        RUNTIME
+        FILE_SET HEADERS
+    )
+endfunction()
+
+install_tgt(Ble)
+install_tgt(Ruuvi)
+install_tgt(ruuvi-exposer)
+if (BUILD_SYSINFO_EXPOSER)
+    install_tgt(Sysinfo)
+endif()

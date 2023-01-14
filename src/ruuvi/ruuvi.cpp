@@ -5,8 +5,6 @@
 #include <future>
 #include <iomanip>
 
-#include "ble/receiver.hpp"
-
 using namespace ble;
 using namespace ruuvi;
 
@@ -22,18 +20,6 @@ std::string n2hexstr(I w, size_t hex_len = sizeof(I) << 1) {
 }
 
 }  // namespace
-
-BleListener::BleListener(std::function<listener_callback> cb,
-                         std::string const& nm)
-    : impl(std::make_unique<Impl>(std::move(cb), nm)) {}
-
-BleListener::~BleListener() = default;
-
-void BleListener::start() { impl->start(); }
-void BleListener::stop() noexcept { impl->stop(); }
-
-void BleListener::blacklist(std::string const& mac) { impl->blacklist(mac); }
-
 // ------------------------------------------------------------------------------------
 
 float ruuvi_data_format_5::acceleration_total() const {
@@ -131,20 +117,20 @@ ruuvi_data_format_5 ruuvi::convert_data_format_5(BlePacket const& p,
     else
         result.battery_voltage = 1.6f + battery_voltage / 1000.0f;
 
-    if (measurement_sequence == 65535)
-        _throw("Measurement sequence number 65535 invalid");
-    else
-        result.measurement_sequence = measurement_sequence;
+    //    if (measurement_sequence == 65535)
+    //        _throw("Measurement sequence number 65535 invalid");
+    //    else
+    result.measurement_sequence = measurement_sequence;
 
     if (tx_power == 31)
         _throw("Tx power 31 invalid");
     else
         result.tx_power = -40 + tx_power * 2;
 
-    if (movement_counter == 255)
-        _throw("Movement counter 255 invalid");
-    else
-        result.movement_counter = movement_counter;
+    //    if (movement_counter == 255)
+    //        _throw("Movement counter 255 invalid");
+    //    else
+    result.movement_counter = movement_counter;
 
     if (p.mac != packet_mac) {
         _throw("Receiver and packet MAC addresses differ");
@@ -170,14 +156,14 @@ ruuvi_data_format_3 ruuvi::convert_data_format_3(BlePacket const& p,
         result.contains_errors = true;
     };
 
-    uint8_t humidity     = data[1];
-    int8_t temperature   = ((data[2] & 0x80) == 0 ? 1 : -1) * (data[2] & 0x7F);
+    uint8_t humidity      = data[1];
+    int8_t temperature    = ((data[2] & 0x80) == 0 ? 1 : -1) * (data[2] & 0x7F);
     uint8_t temp_fraction = data[3];
-    uint16_t pressure    = (uint16_t(data[4]) << 8) | data[5];
-    uint16_t accel_x     = (uint16_t(data[6]) << 8) | data[7];
-    uint16_t accel_y     = (uint16_t(data[8]) << 8) | data[9];
-    uint16_t accel_z     = (uint16_t(data[10]) << 8) | data[11];
-    uint16_t voltage     = (uint16_t(data[12]) << 8) | data[13];
+    uint16_t pressure     = (uint16_t(data[4]) << 8) | data[5];
+    uint16_t accel_x      = (uint16_t(data[6]) << 8) | data[7];
+    uint16_t accel_y      = (uint16_t(data[8]) << 8) | data[9];
+    uint16_t accel_z      = (uint16_t(data[10]) << 8) | data[11];
+    uint16_t voltage      = (uint16_t(data[12]) << 8) | data[13];
 
     result.contains_errors = false;
 
@@ -192,14 +178,14 @@ ruuvi_data_format_3 ruuvi::convert_data_format_3(BlePacket const& p,
         result.temperature =
             temperature + ((data[2] & 0x80) ? -0.01f : 0.01f) * temp_fraction;
     }
-    result.pressure = uint32_t(pressure) + 50'000;
+    result.pressure        = uint32_t(pressure) + 50'000;
     result.acceleration[0] = static_cast<int16_t>(accel_x) * 0.001f;
     result.acceleration[1] = static_cast<int16_t>(accel_y) * 0.001f;
     result.acceleration[2] = static_cast<int16_t>(accel_z) * 0.001f;
     result.battery_voltage = voltage * 0.001f;
 
     result.signal_strength = p.signal_strength;
-    result.mac = p.mac;
+    result.mac             = p.mac;
 
     return result;
 }

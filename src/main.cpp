@@ -18,9 +18,15 @@ using logging::log;
 class Ruuvitag {
 public:
     Ruuvitag()
-        : listener(std::bind(&Ruuvitag::ble_callback, this, std::placeholders::_1)),
-          exposer("0.0.0.0:9105"), rvexposer(std::make_shared<ruuvi::RuuviExposer>()),
-          sysinfo(sys_info::SystemInfoCollector::create()) {
+        : listener(
+            std::bind(&Ruuvitag::ble_callback, this, std::placeholders::_1)),
+          exposer("0.0.0.0:9105"),
+          rvexposer(std::make_shared<ruuvi::RuuviExposer>())
+#ifdef ENABLE_SYSINFO_EXPOSER
+          ,
+          sysinfo(sys_info::SystemInfoCollector::create())
+#endif
+    {
         exposer.RegisterCollectable(rvexposer);
         exposer.RegisterCollectable(sysinfo);
         log("Collectables registered");
@@ -44,7 +50,8 @@ public:
             //            log(data);
             rvexposer->update(data);
             if (data.contains_errors) {
-                log("Ruuvitag message errors from ", data.mac, ": ", data.error_msg);
+                log("Ruuvitag message errors from ", data.mac, ": ",
+                    data.error_msg);
             }
         } else {
             listener.blacklist(p.mac);
@@ -58,10 +65,13 @@ private:
     std::shared_ptr<sys_info::SystemInfoCollector> sysinfo;
 };
 
+namespace {
 std::atomic_flag stop_all           = ATOMIC_FLAG_INIT;
 std::atomic_bool stopped_with_error = false;
+}
 
 void stop_handler(int) {
+    //
     stop_all.clear();
 }
 
@@ -77,7 +87,8 @@ int main() {
                 // Stop
                 stop_all.clear();
                 stopped_with_error = true;
-                std::cerr << "Runner thread exited with error: " << e.what() << "\n";
+                std::cerr << "Runner thread exited with error: " << e.what()
+                          << "\n";
             }
         });
 

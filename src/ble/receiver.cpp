@@ -1,9 +1,24 @@
 #include "receiver.hpp"
+#include "receiver_impl.hpp"
 
 #include "logging/logging.hpp"
 
+#include <thread>
+
 using namespace ble;
 using namespace logging;
+
+BleListener::BleListener(std::function<listener_callback> cb,
+                         std::string const& nm)
+    : impl(std::make_unique<Impl>(std::move(cb), nm)) {}
+
+BleListener::~BleListener() = default;
+
+void BleListener::start() { impl->start(); }
+void BleListener::stop() noexcept { impl->stop(); }
+
+void BleListener::blacklist(std::string const& mac) { impl->blacklist(mac); }
+
 
 BleListener::Impl::Impl(std::function<listener_callback> cb, const std::string& nm)
     : callback_(std::move(cb)), adapter_name(nm) {
@@ -67,7 +82,7 @@ void BleListener::Impl::blacklist(const std::string& mac) {
 
 void BleListener::Impl::add_cb(
     sdbus::ObjectPath const& obj,
-    std::map<std::string, std::map<std::string, sdbus::Variant>> const& interfaces) {
+    [[maybe_unused]] std::map<std::string, std::map<std::string, sdbus::Variant>> const& interfaces) {
 
     try {
         if (listeners.find(obj) != listeners.end()) { return; }

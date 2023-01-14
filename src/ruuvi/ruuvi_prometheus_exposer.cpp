@@ -23,13 +23,14 @@ namespace {
 
 class MetricCollector {
 public:
-    MetricCollector(Family<Gauge>& m, std::function<double(ruuvi_data_format_5 const&)> const& c,
+    MetricCollector(Family<Gauge>& m,
+                    std::function<double(ruuvi_data_format_5 const&)> const& c,
                     std::map<std::string, std::string> const& l = {})
         : metric(&m), collector(c), labels(l) {}
 
     void update(ruuvi_data_format_5 const& d) {
         auto tmp = labels;
-        tmp.insert({ "mac", d.mac });
+        tmp.insert({"mac", d.mac});
         metric->Add(tmp).Set(collector(d));
     }
 
@@ -46,83 +47,91 @@ public:
     Impl(): registry(std::make_shared<Registry>()) {
         std::lock_guard grd(mtx);
 
-        collectors.push_back({ BuildGauge()
-                                   .Name("ruuvi_temperature_celsius")
-                                   .Help("Ruuvitag temperature in Celsius")
-                                   .Register(*registry),
-                               &ruuvi_data_format_5::temperature });
+        collectors.push_back({BuildGauge()
+                                  .Name("ruuvi_temperature_celsius")
+                                  .Help("Ruuvitag temperature in Celsius")
+                                  .Register(*registry),
+                              &ruuvi_data_format_5::temperature});
 
-        collectors.push_back({ BuildGauge()
-                                   .Name("ruuvi_relative_humidity_ratio")
-                                   .Help("Ruuvitag relative humidity 0-100%")
-                                   .Register(*registry),
-                               &ruuvi_data_format_5::humidity });
+        collectors.push_back({BuildGauge()
+                                  .Name("ruuvi_relative_humidity_ratio")
+                                  .Help("Ruuvitag relative humidity 0-100%")
+                                  .Register(*registry),
+                              &ruuvi_data_format_5::humidity});
 
-        collectors.push_back({ BuildGauge()
-                                   .Name("ruuvi_pressure_pascals")
-                                   .Help("Ruuvitag pressure in Pascal")
-                                   .Register(*registry),
-                               &ruuvi_data_format_5::pressure });
+        collectors.push_back({BuildGauge()
+                                  .Name("ruuvi_pressure_pascals")
+                                  .Help("Ruuvitag pressure in Pascal")
+                                  .Register(*registry),
+                              &ruuvi_data_format_5::pressure});
 
-        collectors.push_back({ BuildGauge()
-                                   .Name("ruuvi_acceleration_gs")
-                                   .Help("Ruuvitag acceleration in Gs")
-                                   .Register(*registry),
-                               [](ruuvi_data_format_5 const& p) { return p.acceleration[0]; },
-                               { { "axis", "x" } } });
+        collectors.push_back(
+            {BuildGauge()
+                 .Name("ruuvi_acceleration_gs")
+                 .Help("Ruuvitag acceleration in Gs")
+                 .Register(*registry),
+             [](ruuvi_data_format_5 const& p) { return p.acceleration[0]; },
+             {{"axis", "x"}}});
 
-        collectors.push_back({ BuildGauge()
-                                   .Name("ruuvi_acceleration_gs")
-                                   .Help("Ruuvitag acceleration in Gs")
-                                   .Register(*registry),
-                               [](ruuvi_data_format_5 const& p) { return p.acceleration[1]; },
-                               { { "axis", "y" } } });
+        collectors.push_back(
+            {BuildGauge()
+                 .Name("ruuvi_acceleration_gs")
+                 .Help("Ruuvitag acceleration in Gs")
+                 .Register(*registry),
+             [](ruuvi_data_format_5 const& p) { return p.acceleration[1]; },
+             {{"axis", "y"}}});
 
-        collectors.push_back({ BuildGauge()
-                                   .Name("ruuvi_acceleration_gs")
-                                   .Help("Ruuvitag acceleration in Gs")
-                                   .Register(*registry),
-                               [](ruuvi_data_format_5 const& p) { return p.acceleration[2]; },
-                               { { "axis", "z" } } });
+        collectors.push_back(
+            {BuildGauge()
+                 .Name("ruuvi_acceleration_gs")
+                 .Help("Ruuvitag acceleration in Gs")
+                 .Register(*registry),
+             [](ruuvi_data_format_5 const& p) { return p.acceleration[2]; },
+             {{"axis", "z"}}});
 
-        collectors.push_back({ BuildGauge()
-                                   .Name("ruuvi_battery_volts")
-                                   .Help("Ruuvitag battery voltage")
-                                   .Register(*registry),
-                               &ruuvi_data_format_5::battery_voltage });
+        collectors.push_back({BuildGauge()
+                                  .Name("ruuvi_battery_volts")
+                                  .Help("Ruuvitag battery voltage")
+                                  .Register(*registry),
+                              &ruuvi_data_format_5::battery_voltage});
 
-        collectors.push_back({ BuildGauge()
-                                   .Name("ruuvi_movement_count")
-                                   .Help("Ruuvitag movement counter")
-                                   .Register(*registry),
-                               &ruuvi_data_format_5::movement_counter });
+        collectors.push_back({BuildGauge()
+                                  .Name("ruuvi_movement_count")
+                                  .Help("Ruuvitag movement counter")
+                                  .Register(*registry),
+                              &ruuvi_data_format_5::movement_counter});
 
-        collectors.push_back({ BuildGauge()
-                                   .Name("ruuvi_tx_power_dbm")
-                                   .Help("Ruuvitag transmit power")
-                                   .Register(*registry),
-                               &ruuvi_data_format_5::tx_power });
+        collectors.push_back({BuildGauge()
+                                  .Name("ruuvi_tx_power_dbm")
+                                  .Help("Ruuvitag transmit power")
+                                  .Register(*registry),
+                              &ruuvi_data_format_5::tx_power});
 
-        collectors.push_back({ BuildGauge()
-                                   .Name("ruuvi_measurement_count")
-                                   .Help("Ruuvitag packet measurement sequence number[0-65335]")
-                                   .Register(*registry),
-                               &ruuvi_data_format_5::measurement_sequence });
+        collectors.push_back(
+            {BuildGauge()
+                 .Name("ruuvi_measurement_count")
+                 .Help("Ruuvitag packet measurement sequence number[0-65335]")
+                 .Register(*registry),
+             &ruuvi_data_format_5::measurement_sequence});
 
-        collectors.push_back({ BuildGauge()
-                                   .Name("ruuvi_rssi_dbm")
-                                   .Help("Ruuvitag received signal strength rssi")
-                                   .Register(*registry),
-                               &ruuvi_data_format_5::signal_strength });
+        collectors.push_back(
+            {BuildGauge()
+                 .Name("ruuvi_rssi_dbm")
+                 .Help("Ruuvitag received signal strength rssi")
+                 .Register(*registry),
+             &ruuvi_data_format_5::signal_strength});
 
-        collectors.push_back({ BuildGauge()
-                                   .Name("ruuvi_accelerayion_gs_total")
-                                   .Help("Total acceleration of ruuvitag, hypot(x, y, z)")
-                                   .Register(*registry),
-                               &ruuvi_data_format_5::acceleration_total });
+        collectors.push_back(
+            {BuildGauge()
+                 .Name("ruuvi_accelerayion_gs_total")
+                 .Help("Total acceleration of ruuvitag, hypot(x, y, z)")
+                 .Register(*registry),
+             &ruuvi_data_format_5::acceleration_total});
 
-        errors_counter =
-            &BuildCounter().Name("ruuvi_errors_total").Help("Number of errors").Register(*registry);
+        errors_counter = &BuildCounter()
+                              .Name("ruuvi_errors_total")
+                              .Help("Number of errors")
+                              .Register(*registry);
 
         measurements_total = &BuildCounter()
                                   .Name("ruuvi_received_measurements_total")
@@ -133,12 +142,21 @@ public:
     void update_data(ruuvi_data_format_5 const& new_data) {
         std::lock_guard grd(mtx);
         for (auto& c : collectors) { c.update(new_data); }
-        measurements_total->Add({ { "mac", new_data.mac } }).Increment();
-        auto& e = errors_counter->Add({ { "mac", new_data.mac } });
+        measurements_total
+            ->Add({
+                {"mac", new_data.mac}
+        })
+            .Increment();
+        auto& e = errors_counter->Add({
+            {"mac", new_data.mac}
+        });
         if (new_data.contains_errors) e.Increment();
     }
 
-    std::vector<MetricFamily> Collect() { return registry->Collect(); }
+    std::vector<MetricFamily> Collect() {
+        std::lock_guard grd(mtx);
+        return registry->Collect();
+    }
 
 private:
     const std::shared_ptr<Registry> registry;
