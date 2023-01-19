@@ -700,7 +700,8 @@ private:
 
 #else
 
-class SystSystemInfoCollector::Impl {
+class SystemInfoCollector::Impl {
+public:
     std::vector<MetricFamily> Collect() const {
         return {};
     }

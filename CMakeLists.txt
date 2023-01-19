@@ -76,15 +76,15 @@ option(BUILD_SYSINFO_EXPOSER "Build the system info exposer, which requires /pro
 
 add_library(Ble "")
 add_library(Ruuvi "")
+add_library(Sysinfo "")
 add_executable(ruuvi-exposer "")
+target_link_libraries(Sysinfo PUBLIC prometheus-cpp::core)
 if (BUILD_SYSINFO_EXPOSER)
-    add_library(Sysinfo "")
     target_compile_definitions(Sysinfo PRIVATE ENABLE_SYSINFO_EXPOSER)
-    target_link_libraries(Sysinfo PUBLIC prometheus-cpp::core)
 endif()
 
 target_link_libraries(Ble PUBLIC options SDBusCpp::sdbus-c++)
-target_link_libraries(Ruuvi PRIVATE options PUBLIC prometheus-cpp::pull $<$<BOOL:${BUILD_SYSINFO_EXPOSER}>: Sysinfo>)
+target_link_libraries(Ruuvi PRIVATE options PUBLIC prometheus-cpp::pull Sysinfo)
 
 target_link_libraries(ruuvi-exposer PRIVATE options Ruuvi Ble)
 
