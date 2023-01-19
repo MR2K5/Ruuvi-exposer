@@ -29,6 +29,8 @@ std::shared_ptr<sys_info::SystemInfoCollector> SystemInfoCollector::create() {
     return std::make_shared<SystemInfoCollector>(init());
 }
 
+#ifdef ENABLE_SYSINFO_EXPOSER
+
 namespace {
 
 struct thermal_info {
@@ -695,6 +697,17 @@ private:
                 .Callback(parse_sensors));
     }
 };
+
+#else
+
+class SystSystemInfoCollector::Impl {
+    std::vector<MetricFamily> Collect() const {
+        return {};
+    }
+};
+
+#endif
+
 
 SystemInfoCollector::SystemInfoCollector(init)
     : impl(std::make_unique<Impl>()) {}

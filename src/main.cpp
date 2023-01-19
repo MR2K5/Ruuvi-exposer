@@ -21,12 +21,8 @@ public:
         : listener(
             std::bind(&Ruuvitag::ble_callback, this, std::placeholders::_1)),
           exposer("0.0.0.0:9105"),
-          rvexposer(std::make_shared<ruuvi::RuuviExposer>())
-#ifdef ENABLE_SYSINFO_EXPOSER
-          ,
-          sysinfo(sys_info::SystemInfoCollector::create())
-#endif
-    {
+          rvexposer(std::make_shared<ruuvi::RuuviExposer>()),
+          sysinfo(sys_info::SystemInfoCollector::create()) {
         exposer.RegisterCollectable(rvexposer);
         exposer.RegisterCollectable(sysinfo);
         log("Collectables registered");

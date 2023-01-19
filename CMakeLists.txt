@@ -79,7 +79,7 @@ add_library(Ruuvi "")
 add_executable(ruuvi-exposer "")
 if (BUILD_SYSINFO_EXPOSER)
     add_library(Sysinfo "")
-    target_compile_definitions(ruuvi-exposer PRIVATE ENABLE_SYSINFO_EXPOSER)
+    target_compile_definitions(Sysinfo PRIVATE ENABLE_SYSINFO_EXPOSER)
     target_link_libraries(Sysinfo PUBLIC prometheus-cpp::core)
 endif()
 
