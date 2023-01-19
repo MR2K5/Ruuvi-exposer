@@ -7,6 +7,12 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
+include(CTest)
+if (BUILD_TESTING)
+    message(STATUS "Testing enabled")
+    find_package(GTest REQUIRED)
+endif()
+
 set(CMAKE_CXX_FLAGS -gdwarf-4)
 set(CMAKE_C_FLAGS -gdwarf-4)
 
@@ -33,11 +39,6 @@ endif()
 
 if(NOT EXISTS "${PROJECT_SOURCE_DIR}/ext/prometheus-cpp/CMakeLists.txt")
     message(FATAL_ERROR "The submodules were not downloaded!")
-endif()
-
-if(NOT ENABLE_TESTING)
-    message(STATUS "ENABLE_TESTING not set, disabling by default")
-    set(ENABLE_TESTING OFF CACHE BOOL "Enable building of prometheus-cpp tests")
 endif()
 
 set(OVERRIDE_CXX_STANDARD_FLAGS OFF CACHE BOOL "" FORCE)
@@ -109,3 +110,5 @@ install_tgt(ruuvi-exposer)
 if (BUILD_SYSINFO_EXPOSER)
     install_tgt(Sysinfo)
 endif()
+
+add_subdirectory(test)

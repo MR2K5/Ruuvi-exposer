@@ -49,7 +49,7 @@ ruuvi_data_format_5 ruuvi::convert_data_format_5(BlePacket const& p,
     };
 
     if (p.manufacturer_data.size() != 24) {
-        _throw("Expected data szie 24, got "
+        _throw("Expected data size 24, got "
                + std::to_string(p.manufacturer_data.size()));
     }
     if (data[0] != 0x05)
