@@ -66,7 +66,7 @@ std::atomic_flag stop_all           = ATOMIC_FLAG_INIT;
 std::atomic_bool stopped_with_error = false;
 }
 
-void stop_handler(int) {
+extern "C" void stop_handler(int) {
     //
     stop_all.clear();
 }

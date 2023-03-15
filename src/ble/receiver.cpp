@@ -99,7 +99,6 @@ void BleListener::Impl::add_cb(
             std::lock_guard g(blist_mtx);
             if (std::find(blist.begin(), blist.end(), mac) != blist.end()) {
                 // mac blacklisted
-                log("Can't add ", mac, ", blacklisted");
                 return;
             }
         }
