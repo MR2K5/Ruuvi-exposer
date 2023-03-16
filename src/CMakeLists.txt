@@ -5,3 +5,6 @@ target_sources(Ble PRIVATE ble/receiver.cpp)
 
 target_sources(Sysinfo PRIVATE ruuvi/system_info_exposer.cpp)
 
+if (${BUILD_SYSINFO_EXPOSER})
+    target_sources(Sysinfo PRIVATE ruuvi/raw_gauge.cpp ruuvi/system_info.cpp)
+endif()

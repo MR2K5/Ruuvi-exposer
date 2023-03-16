@@ -11,10 +11,12 @@ class SystemInfoCollector: public prometheus::Collectable {
     struct init {};
 
 public:
-    static constexpr char const* meminfo_location               = "/proc/meminfo";
-    static constexpr char const* stat_location                  = "/proc/stat";
-    static constexpr char const* netstat_location               = "/proc/net/netstat";
-    static constexpr char const* thremal_sesnsors_root_location = "/sys/class/thermal";
+    static constexpr char const* meminfo_location = "/proc/meminfo";
+    static constexpr char const* stat_location    = "/proc/stat";
+    static constexpr char const* netstat_location = "/proc/net/netstat";
+    static constexpr char const* thremal_sesnsors_root_location =
+        "/sys/class/thermal";
+    static constexpr char const* diskstat_location = "/proc/diskstat";
 
     static std::shared_ptr<SystemInfoCollector> create();
     std::vector<prometheus::MetricFamily> Collect() const override;
