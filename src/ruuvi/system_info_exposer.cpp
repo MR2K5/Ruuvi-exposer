@@ -511,7 +511,7 @@ template<class F> auto to_double_single(F&& f) {
                system_info const& i) -> std::vector<ClientMetric> {
         std::vector<ClientMetric> ret;
         ClientMetric& m = ret.emplace_back();
-        m.gauge.value = static_cast<double>(std::invoke(fn, i));
+        m.gauge.value   = static_cast<double>(std::invoke(fn, i));
         return ret;
     };
 }
@@ -600,6 +600,19 @@ private:
                 .Help("Amount of unused swap memory")
                 .Type(MetricType::Gauge)
                 .Callback(to_double_single(&system_info::SwapFree)));
+        gauges.push_back(
+            BuildRawGauge()
+                .Name("sysinfo_memory_dirty_bytes")
+                .Help("Amount of 'dirty memory' to be written to ram"
+                      "but not yet synced")
+                .Type(MetricType::Gauge)
+                .Callback(to_double_single(&system_info::Dirty)));
+        gauges.push_back(
+            BuildRawGauge()
+                .Name("sysinfo_memory_writeback_bytes")
+                .Help("Amount of memory currently being written to disk")
+                .Type(MetricType::Gauge)
+                .Callback(to_double_single(&system_info::Writeback)));
 
         // ------ sysinfo() --------
 
@@ -702,13 +715,10 @@ private:
 
 class SystemInfoCollector::Impl {
 public:
-    std::vector<MetricFamily> Collect() const {
-        return {};
-    }
+    std::vector<MetricFamily> Collect() const { return {}; }
 };
 
 #endif
-
 
 SystemInfoCollector::SystemInfoCollector(init)
     : impl(std::make_unique<Impl>()) {}
