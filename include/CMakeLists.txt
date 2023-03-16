@@ -1,6 +1,6 @@
 
 target_include_directories(Sysinfo PRIVATE sysinfo PUBLIC .)
-target_sources(Sysinfo PUBLIC FILE_SET HEADERS FILES sysinfo/system_info_exposer.hpp)
+target_sources(Sysinfo PUBLIC FILE_SET HEADERS FILES sysinfo/system_info_exposer.hpp sysinfo/diskstat_exposer.hpp)
 
 
 target_include_directories(Ruuvi PRIVATE ruuvi PUBLIC .)

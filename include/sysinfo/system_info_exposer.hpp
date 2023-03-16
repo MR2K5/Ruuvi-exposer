@@ -16,7 +16,6 @@ public:
     static constexpr char const* netstat_location = "/proc/net/netstat";
     static constexpr char const* thremal_sesnsors_root_location =
         "/sys/class/thermal";
-    static constexpr char const* diskstat_location = "/proc/diskstat";
 
     static std::shared_ptr<SystemInfoCollector> create();
     std::vector<prometheus::MetricFamily> Collect() const override;

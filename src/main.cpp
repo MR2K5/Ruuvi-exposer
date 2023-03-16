@@ -4,6 +4,7 @@
 #include <prometheus/registry.h>
 #include <ruuvi/ruuvi.hpp>
 #include <ruuvi/ruuvi_prometheus_exposer.hpp>
+#include <sysinfo/diskstat_exposer.hpp>
 #include <sysinfo/system_info_exposer.hpp>
 
 #include <cassert>
@@ -22,9 +23,11 @@ public:
             std::bind(&Ruuvitag::ble_callback, this, std::placeholders::_1)),
           exposer("0.0.0.0:9105"),
           rvexposer(std::make_shared<ruuvi::RuuviExposer>()),
-          sysinfo(sys_info::SystemInfoCollector::create()) {
+          sysinfo(sys_info::SystemInfoCollector::create()),
+          diskstat(std::make_shared<sys_info::DiskstatExposer>()) {
         exposer.RegisterCollectable(rvexposer);
         exposer.RegisterCollectable(sysinfo);
+        exposer.RegisterCollectable(diskstat);
         log("Collectables registered");
     }
     Ruuvitag(Ruuvitag const&)            = delete;
@@ -59,6 +62,7 @@ private:
     prometheus::Exposer exposer;
     std::shared_ptr<ruuvi::RuuviExposer> rvexposer;
     std::shared_ptr<sys_info::SystemInfoCollector> sysinfo;
+    std::shared_ptr<sys_info::DiskstatExposer> diskstat;
 };
 
 namespace {
