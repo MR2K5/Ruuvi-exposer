@@ -12,40 +12,74 @@ class system_info;
 
 using cb_func = std::vector<pr::ClientMetric>(system_info const&);
 
+template<class...>
 class raw_gauge_builder;
 
-class raw_gauge {
+template<class... As> class raw_gauge {
 public:
-    pr::MetricFamily Collect(system_info const& info) const;
+    using func = std::vector<pr::ClientMetric>(As const&... as);
 
+    pr::MetricFamily Collect(As const&... as) const {
+        auto m   = gauge;
+        m.metric = callback(as...);
+
+        m.metric.reserve(m.metric.size() + labels.size());
+        for (auto& [name, value] : labels) {
+            for (auto& n : m.metric) { n.label.push_back({name, value}); }
+        }
+        return m;
+    }
+
+    template<class...>
     friend class raw_gauge_builder;
 
 private:
-    std::function<cb_func> callback;
+    std::function<func> callback;
     pr::MetricFamily gauge;
     std::map<std::string, std::string> labels;
     raw_gauge() = default;
 };
 
+template<class... As>
 class raw_gauge_builder {
 public:
     raw_gauge_builder() = default;
-    raw_gauge_builder&& Name(std::string const& n) &&;
-    raw_gauge_builder&& Help(std::string const& n) &&;
-    raw_gauge_builder&& Type(pr::MetricType t) &&;
-    raw_gauge_builder&& Labels(std::map<std::string, std::string> const& n) &&;
-    raw_gauge_builder&& Callback(std::function<cb_func> const& n) &&;
+    raw_gauge_builder&& Name(std::string const& n) && {
+        name = n;
+        return std::move(*this);
+    }
+    raw_gauge_builder&& Help(std::string const& n) && {
+        help = n;
+        return std::move(*this);
+    }
 
-    operator raw_gauge() &&;
+    raw_gauge_builder&& Type(prometheus::MetricType t) && {
+        type = t;
+        return std::move(*this);
+    }
+
+    raw_gauge_builder&& Labels(std::map<std::string, std::string> const& n) && {
+        labels = n;
+        return std::move(*this);
+    }
+
+    template<class F>
+    auto Callback(F&& f) && {
+        raw_gauge<As...> g;
+        g.callback = std::forward<F>(f);
+        g.gauge    = pr::MetricFamily{std::move(name), std::move(help), type, {}};
+        g.labels   = std::move(labels);
+        return g;
+    }
 
 private:
     std::string name;
     std::string help;
     pr::MetricType type;
     std::map<std::string, std::string> labels;
-    std::function<cb_func> callback;
 };
 
-raw_gauge_builder BuildRawGauge();
+template<class... As>
+raw_gauge_builder<As...> BuildRawGauge() { return raw_gauge_builder<As...>{}; }
 
 }  // namespace sys_info

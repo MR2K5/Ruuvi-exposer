@@ -51,10 +51,14 @@ public:
     }
 
 private:
-    std::vector<raw_gauge> gauges;
+    std::vector<raw_gauge<system_info const&>> gauges;
 
     void create_gauges() {
         // ------ memstat --------
+        auto BuildRawGauge = []() {
+            return sys_info::BuildRawGauge<system_info const&>();
+        };
+
         gauges.push_back(
             BuildRawGauge()
                 .Name("sysinfo_memory_size_bytes")
