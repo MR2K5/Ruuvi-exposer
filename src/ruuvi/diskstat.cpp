@@ -14,7 +14,7 @@ namespace sys_info {
 
 double Diskstat::time_to_float(ui time) {
     // time is given in milliseconds
-    return double(time) * 1000.0;
+    return double(time) / 1000.0;
 }
 
 double Diskstat::sector_byte_size() {
