@@ -94,11 +94,12 @@ family_with_func create_metric_families() {
     cr1("sysinfo_disk_io_time_seconds_total", "Time spent on disk I/O",
         convert_time(&Diskstat::IOTime));
     cr1("sysinfo_disk_io_weighted_time_seconds_total",
-        R"RAW("This field is incremented at each I/O start, I/O completion, I/O
-        merge, or read of these stats by the number of I/Os in progress
-        [sysinfo_disk_io_in_progress] times the number of milliseconds spent doing I/O since the
-        last update of this field.  This can provide an easy measure of both
-        I/O completion time and the backlog that may be accumulating.")RAW",
+        "This field is incremented at each I/O start, I/O completion, I/O "
+        "merge, or read of these stats by the number of I/Os in progress "
+        "[sysinfo_disk_io_in_progress] times the number of milliseconds spent "
+        "doing I/O since the "
+        "last update of this field.  This can provide an easy measure of both "
+        "I/O completion time and the backlog that may be accumulating.",
         convert_time(&Diskstat::WeightedIOTime));
 
     cr1("sysinfo_disk_discards_completed_blocks_total",
