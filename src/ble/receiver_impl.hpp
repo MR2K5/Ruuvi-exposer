@@ -18,6 +18,7 @@ public:
     void start();
 
     void blacklist(std::string const& mac);
+    std::vector<std::string> get_blacklist() const;
 
     bool is_discovering() const;
 
@@ -35,7 +36,7 @@ private:
     std::mutex listeners_mtx;
 
     std::vector<std::string> blist;
-    std::mutex blist_mtx;
+    mutable std::mutex blist_mtx;
 
     std::atomic_bool should_discover   = false;
     std::atomic_bool exited_with_error = false;

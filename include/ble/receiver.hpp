@@ -26,6 +26,7 @@ public:
     void start();
     void stop() noexcept;
     void blacklist(std::string const& mac);
+    std::vector<std::string> get_blacklist() const;
 
 private:
     class Impl;

@@ -57,6 +57,17 @@ public:
         }
     }
 
+    void print_debug() const noexcept {
+        try {
+            log("\nBlacklisted macs: ");
+            for (auto const& mac: listener.get_blacklist()) {
+                log(mac);
+            }
+
+            log("");
+        } catch (...) {}
+    }
+
 private:
     ble::BleListener listener;
     prometheus::Exposer exposer;
@@ -68,6 +79,7 @@ private:
 namespace {
 std::atomic_flag stop_all           = ATOMIC_FLAG_INIT;
 std::atomic_bool stopped_with_error = false;
+std::atomic_flag debug_print = ATOMIC_FLAG_INIT;
 }
 
 extern "C" void stop_handler(int) {
@@ -75,10 +87,15 @@ extern "C" void stop_handler(int) {
     stop_all.clear();
 }
 
+extern "C" void sigusr_handler(int) {
+    debug_print.clear(std::memory_order_relaxed);
+}
+
 int main() {
     try {
         Ruuvitag rv;
         stop_all.test_and_set();
+        debug_print.test_and_set();
 
         std::thread runner([&rv]() {
             try {
@@ -95,6 +112,9 @@ int main() {
         std::thread stopper([&rv]() {
             while (stop_all.test_and_set()) {
                 std::this_thread::sleep_for(std::chrono::milliseconds(500));
+                if (debug_print.test_and_set(std::memory_order_relaxed) == false) {
+                    rv.print_debug();
+                }
             }
             log("Stopping...");
             rv.stop();
@@ -102,6 +122,7 @@ int main() {
 
         std::signal(SIGTERM, stop_handler);
         std::signal(SIGINT, stop_handler);
+        std::signal(SIGUSR1, sigusr_handler);
 
         std::this_thread::sleep_for(std::chrono::seconds(1));
 
