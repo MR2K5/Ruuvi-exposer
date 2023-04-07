@@ -56,6 +56,7 @@ set(USE_SANITIZER "" CACHE STRING "Select sanitizer used (only works with gcc or
 set_property(CACHE USE_SANITIZER PROPERTY STRINGS "" "thread" "undefined" "address")
 
 add_library(options INTERFACE)
+
 if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
     message(STATUS "Using gcc or clang, adding warnings")
     target_compile_options(options INTERFACE -Wall -Wextra -pedantic $<$<CONFIG:Release>: -march=native>)
@@ -78,7 +79,8 @@ add_library(Ble "")
 add_library(Ruuvi "")
 add_library(Sysinfo "")
 add_executable(ruuvi-exposer "")
-target_link_libraries(Sysinfo PUBLIC prometheus-cpp::core)
+
+target_link_libraries(Sysinfo PUBLIC prometheus-cpp::core std::filesystem)
 if (BUILD_SYSINFO_EXPOSER)
     target_compile_definitions(Sysinfo PRIVATE ENABLE_SYSINFO_EXPOSER)
 endif()
