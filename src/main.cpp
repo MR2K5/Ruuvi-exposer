@@ -21,7 +21,7 @@ public:
     Ruuvitag()
         : listener(
             std::bind(&Ruuvitag::ble_callback, this, std::placeholders::_1)),
-          exposer("0.0.0.0:9105"),
+          exposer("[::]:9105,9105"),
           rvexposer(std::make_shared<ruuvi::RuuviExposer>()),
           sysinfo(sys_info::SystemInfoCollector::create()),
           diskstat(std::make_shared<sys_info::DiskstatExposer>()) {
