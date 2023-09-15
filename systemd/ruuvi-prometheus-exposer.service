@@ -2,6 +2,7 @@
 Description=Prometheus exposer for RuuviTag
 StartLimitIntervalSec=60
 StartLimitBurst=3
+After=bluetooth.target
 
 [Service]
 Type=simple
