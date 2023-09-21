@@ -132,4 +132,6 @@ if (BUILD_SYSINFO_EXPOSER)
     install_tgt(Sysinfo)
 endif()
 
-add_subdirectory(test)
+if (BUILD_TESTING)
+    add_subdirectory(test)
+endif()
