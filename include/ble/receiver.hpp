@@ -20,7 +20,7 @@ using listener_callback = void(BlePacket const&);
 class BleListener {
 public:
     explicit BleListener(std::function<listener_callback> f,
-                         std::string const& nm = "hci0");
+                         std::string_view nm = "hci0");
     ~BleListener();
 
     void start();

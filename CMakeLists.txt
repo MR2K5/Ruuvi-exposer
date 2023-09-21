@@ -51,13 +51,30 @@ find_package(Threads REQUIRED)
 find_package(sdbus-c++ REQUIRED)
 find_package(spdlog REQUIRED)
 
+include(FetchContent)
+FetchContent_Declare(
+    args
+    GIT_REPOSITORY https://github.com/Taywee/args.git
+    GIT_TAG 6.4.6
+)
+include(CMakeDependentOption)
+cmake_dependent_option(ARGS_BUILD_UNITTESTS "" ON "BUILD_TESTING" OFF)
+
+FetchContent_MakeAvailable(args)
+
+option(ENABLE_SYSTEMD_LOG_SUPPORT "Support the --systemd flag for use with systemd-journald" ON)
+if (ENABLE_SYSTEMD_LOG_SUPPORT)
+    find_package(PkgConfig REQUIRED)
+    pkg_check_modules(SYSTEMD REQUIRED IMPORTED_TARGET libsystemd)
+endif()
+
 set(CMAKE_EXPORT_COMPILE_COMMANDS TRUE CACHE INTERNAL "Export compile commands")
 
 set(USE_SANITIZER "" CACHE STRING "Select sanitizer used (only works with gcc or clang)")
 set_property(CACHE USE_SANITIZER PROPERTY STRINGS "" "thread" "undefined" "address")
 
 add_library(options INTERFACE)
-target_link_libraries(options INTERFACE spdlog::spdlog)
+target_link_libraries(options INTERFACE spdlog::spdlog $<$<BOOL:${ENABLE_SYSTEMD_LOG_SUPPORT}>:PkgConfig::SYSTEMD>)
 
 if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
     message(STATUS "Using gcc or clang, adding warnings")
@@ -90,7 +107,7 @@ endif()
 target_link_libraries(Ble PUBLIC options SDBusCpp::sdbus-c++)
 target_link_libraries(Ruuvi PRIVATE options PUBLIC prometheus-cpp::pull Sysinfo)
 
-target_link_libraries(ruuvi-exposer PRIVATE options Ruuvi Ble)
+target_link_libraries(ruuvi-exposer PRIVATE options Ruuvi Ble args)
 
 
 add_subdirectory(src)

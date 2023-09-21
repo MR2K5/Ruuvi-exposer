@@ -8,7 +8,7 @@
 using namespace ble;
 
 BleListener::BleListener(std::function<listener_callback> cb,
-                         std::string const& nm)
+                         std::string_view nm)
     : impl(std::make_unique<Impl>(std::move(cb), nm)) {}
 
 BleListener::~BleListener() = default;
@@ -23,7 +23,7 @@ std::vector<std::string> BleListener::get_blacklist() const {
 }
 
 BleListener::Impl::Impl(std::function<listener_callback> cb,
-                        std::string const& nm)
+                        std::string_view nm)
     : callback_(std::move(cb)), adapter_name(nm) {
     if (!callback_) {
         throw std::logic_error("BleListener initialized with mpty callback");
@@ -35,8 +35,9 @@ BleListener::Impl::~Impl() { stop(); }
 
 void BleListener::Impl::create_connection() {
     connection = sdbus::createConnection();
+    std::string const object_path = "/org/bluez/" + adapter_name;
 
-    manager = sdbus::createProxy(*connection, "org.bluez", "/org/bluez/hci0");
+    manager = sdbus::createProxy(*connection, "org.bluez", object_path);
 
     objmanager = sdbus::createProxy(*connection, "org.bluez", "/");
 
@@ -50,10 +51,10 @@ void BleListener::Impl::create_connection() {
 
     manager->uponSignal("PropertiesChanged")
         .onInterface("org.freedesktop.DBus.Properties")
-        .call([this](std::string const& interface,
+        .call([this, object_path](std::string const& interface,
                      std::map<std::string, sdbus::Variant> const& changed,
                      std::vector<std::string> const& invalid) {
-            this->discovery_failed_cb("/org/bluez/hci0", interface, changed,
+            this->discovery_failed_cb(object_path, interface, changed,
                                       invalid);
         });
 

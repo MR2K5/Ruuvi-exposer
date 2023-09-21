@@ -13,15 +13,15 @@
 #include <future>
 #include <thread>
 
-#include <spdlog/spdlog.h>
+#include <args.hxx>
 #include <spdlog/sinks/systemd_sink.h>
+#include <spdlog/spdlog.h>
 
 class Ruuvitag {
 public:
-    Ruuvitag()
-        : listener(
-            std::bind(&Ruuvitag::ble_callback, this, std::placeholders::_1)),
-          exposer("[::]:9105,9105"),
+    Ruuvitag(int port, std::string_view name)
+        : listener(std::bind(&Ruuvitag::ble_callback, this, std::placeholders::_1), name),
+          exposer("[::]:" + std::to_string(port) + "," + std::to_string(port)),
           rvexposer(std::make_shared<ruuvi::RuuviExposer>()),
           sysinfo(sys_info::SystemInfoCollector::create()),
           diskstat(std::make_shared<sys_info::DiskstatExposer>()) {
@@ -49,8 +49,7 @@ public:
             //            log(data);
             rvexposer->update(data);
             if (data.contains_errors) {
-                spdlog::info("Ruuvitag message errors from ", data.mac, ": ",
-                    data.error_msg);
+                spdlog::info("Ruuvitag message errors from ", data.mac, ": ", data.error_msg);
             }
         } else {
             listener.blacklist(p.mac);
@@ -60,9 +59,7 @@ public:
     void print_debug() const noexcept {
         try {
             spdlog::info("\nBlacklisted macs: ");
-            for (auto const& mac: listener.get_blacklist()) {
-                spdlog::info(mac);
-            }
+            for (auto const& mac: listener.get_blacklist()) { spdlog::info(mac); }
 
             spdlog::info("");
         } catch (...) {}
@@ -79,8 +76,8 @@ private:
 namespace {
 std::atomic_flag stop_all           = ATOMIC_FLAG_INIT;
 std::atomic_bool stopped_with_error = false;
-std::atomic_flag debug_print = ATOMIC_FLAG_INIT;
-}
+std::atomic_flag debug_print        = ATOMIC_FLAG_INIT;
+}  // namespace
 
 extern "C" void stop_handler(int) {
     //
@@ -91,15 +88,45 @@ extern "C" void sigusr_handler(int) {
     debug_print.clear(std::memory_order_relaxed);
 }
 
-void config_logger() {
+void config_logger(bool systemd, bool debug, bool trace) {
     spdlog::flush_on(spdlog::level::err);
+    spdlog::set_level(spdlog::level::info);
+    if (systemd) {
+        static auto logger = spdlog::systemd_logger_mt("ruuvi-exposer");
+        spdlog::set_default_logger(logger);
+    }
+    if (trace)
+        spdlog::set_level(spdlog::level::trace);
+    else if (debug)
+        spdlog::set_level(spdlog::level::debug);
 }
 
-int main() {
-    try {
-        config_logger();
+int main(int argc, char** argv) {
+    args::ArgumentParser p("Ruuvitag Bluetooth Low Energy listener and prometheus exposer");
+    args::HelpFlag help(p, "help", "Display this help menu", {'h', "help"});
+    args::CompletionFlag complete(p, {"complete"});
+    args::Flag systemd(p, "log-to-systemd", "Send log output to systemd-journald", {"systemd"});
+    args::ValueFlag<uint16_t> port(
+        p, "port", "Port on which the exposer is started (default 9105)", {'p', "port"}, 9105
+    );
+    args::Flag debug(p, "debug", "Enable debug logs", {"debug"});
+    args::Flag trace(p, "trace", "Enable trace logs", {"trace"});
+    args::ValueFlag<std::string> interface(p, "interface", "Bluetooth interface to listen on (hci0)", {"interface", 'i'}, "hci0");
 
-        Ruuvitag rv;
+    try {
+        p.ParseCLI(argc, argv);
+    } catch (args::Help const&) {
+        std::cout << p;
+        return EXIT_SUCCESS;
+    } catch (args::Error const& e) {
+        std::cout << e.what() << "\n" << p;
+        return EXIT_FAILURE;
+    }
+
+    try {
+        config_logger(systemd, debug, trace);
+
+        Ruuvitag rv(port, interface.Get());
         stop_all.test_and_set();
         debug_print.test_and_set();
 
@@ -110,8 +137,7 @@ int main() {
                 // Stop
                 stop_all.clear();
                 stopped_with_error = true;
-                std::cerr << "Runner thread exited with error: " << e.what()
-                          << "\n";
+                spdlog::error("Runner thread exited with error {}", e.what());
             }
         });
 

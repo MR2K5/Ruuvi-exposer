@@ -11,7 +11,7 @@ namespace ble {
 
 class BleListener::Impl {
 public:
-    Impl(std::function<listener_callback> cb, std::string const& nm);
+    Impl(std::function<listener_callback> cb, std::string_view nm);
     ~Impl();
 
     void stop() noexcept;
