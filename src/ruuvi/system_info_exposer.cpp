@@ -14,7 +14,7 @@
 
 #include "raw_gauge.hpp"
 #include "system_info.hpp"
-#include <logging/logging.hpp>
+#include <spdlog/spdlog.h>
 
 using namespace sys_info;
 using namespace prometheus;

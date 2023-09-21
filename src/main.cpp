@@ -1,4 +1,3 @@
-#include <logging/logging.hpp>
 #include <prometheus/counter.h>
 #include <prometheus/exposer.h>
 #include <prometheus/registry.h>
@@ -13,6 +12,8 @@
 #include <csignal>
 #include <future>
 #include <thread>
+
+#include <spdlog/spdlog.h>
 #include <spdlog/sinks/systemd_sink.h>
 
 class Ruuvitag {

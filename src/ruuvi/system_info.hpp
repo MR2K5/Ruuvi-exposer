@@ -3,7 +3,7 @@
 #include <atomic>
 #include <filesystem>
 #include <list>
-#include <logging/logging.hpp>
+#include <spdlog/spdlog.h>
 #include <optional>
 #include <string>
 #include <vector>

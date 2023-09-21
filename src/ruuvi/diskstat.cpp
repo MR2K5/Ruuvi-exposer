@@ -4,7 +4,7 @@
 #include <cassert>
 #include <fstream>
 #include <functional>
-#include <logging/logging.hpp>
+#include <spdlog/spdlog.h>
 #include <optional>
 
 #include <prometheus/client_metric.h>

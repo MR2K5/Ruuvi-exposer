@@ -7,9 +7,7 @@
 #include <unistd.h>
 
 #include "system_info_exposer.hpp"
-#include <logging/logging.hpp>
-
-using namespace logging;
+#include <spdlog/spdlog.h>
 
 namespace sys_info {
 

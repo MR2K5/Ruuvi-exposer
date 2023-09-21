@@ -1,12 +1,11 @@
 #include "receiver.hpp"
 #include "receiver_impl.hpp"
 
-#include "logging/logging.hpp"
+#include <spdlog/spdlog.h>
 
 #include <thread>
 
 using namespace ble;
-using namespace logging;
 
 BleListener::BleListener(std::function<listener_callback> cb,
                          std::string const& nm)
