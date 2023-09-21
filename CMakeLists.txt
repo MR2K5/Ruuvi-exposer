@@ -49,6 +49,7 @@ list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 find_package(Filesystem REQUIRED)
 find_package(Threads REQUIRED)
 find_package(sdbus-c++ REQUIRED)
+find_package(spdlog REQUIRED)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS TRUE CACHE INTERNAL "Export compile commands")
 
@@ -56,6 +57,7 @@ set(USE_SANITIZER "" CACHE STRING "Select sanitizer used (only works with gcc or
 set_property(CACHE USE_SANITIZER PROPERTY STRINGS "" "thread" "undefined" "address")
 
 add_library(options INTERFACE)
+target_link_libraries(options INTERFACE spdlog::spdlog)
 
 if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
     message(STATUS "Using gcc or clang, adding warnings")

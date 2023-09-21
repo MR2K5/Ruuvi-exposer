@@ -18,7 +18,6 @@
 
 using namespace sys_info;
 using namespace prometheus;
-using logging::log;
 
 std::shared_ptr<sys_info::SystemInfoCollector> SystemInfoCollector::create() {
     return std::make_shared<SystemInfoCollector>(init());

@@ -70,7 +70,7 @@ void BleListener::Impl::start() {
 }
 
 void BleListener::Impl::blacklist(std::string const& mac) {
-    log("Blacklisting ", mac);
+    spdlog::debug("Blacklisting ", mac);
     {
         std::lock_guard g(blist_mtx);
         if (std::find(blist.begin(), blist.end(), mac)
@@ -117,7 +117,7 @@ void BleListener::Impl::add_cb(
             }
         }
 
-        logging::log("Added ", obj);
+        spdlog::debug("Added ", obj);
 
         properties->uponSignal("PropertiesChanged")
             .onInterface("org.freedesktop.DBus.Properties")
@@ -136,7 +136,7 @@ void BleListener::Impl::add_cb(
         }
         emit_packet(obj);
     } catch (sdbus::Error const& e) {
-        log("Failed to add device: ", e.getName(), " - ", e.getMessage());
+        spdlog::warn("Failed to add device: ", e.getName(), " - ", e.getMessage());
     }
 }
 
@@ -152,7 +152,7 @@ void BleListener::Impl::rem_cb(sdbus::ObjectPath const& obj,
     }
     if (!found) return;
 
-    log("Removed ", obj);
+    spdlog::debug("Removed ", obj);
     std::lock_guard g(listeners_mtx);
     auto p = listeners.find(obj);
     if (p != listeners.end()) { listeners.erase(p); }
@@ -162,7 +162,7 @@ void BleListener::Impl::discovery_failed_cb(
     sdbus::ObjectPath const& /*obj*/, std::string const& interface,
     std::map<std::string, sdbus::Variant> const& changed,
     std::vector<std::string> const& /*invalid*/) {
-    log("Discovery parameters changed");
+    spdlog::info("Discovery parameters changed");
 
     if (interface != "org.bluez.Adapter1") return;
     if (should_discover == false) return;
@@ -171,7 +171,7 @@ void BleListener::Impl::discovery_failed_cb(
     if (p != changed.end()) {
         bool new_state = p->second.get<bool>();
         if (new_state == false) {
-            log("Restarting discovery");
+            spdlog::info("Restarting discovery");
             if (!retry_discovery()) {
                 should_discover   = false;
                 exited_with_error = true;
@@ -188,7 +188,7 @@ bool BleListener::Impl::retry_discovery(int times, std::chrono::seconds wait) {
             start_discovery();
             return true;
         } catch (sdbus::Error const& e) {
-            log("Failed to restart discovery, ", times - i,
+            spdlog::warn("Failed to restart discovery, ", times - i,
                 " remaining: ", e.getName(), " - ", e.getMessage());
         }
     }
@@ -241,7 +241,7 @@ void BleListener::Impl::emit_packet(sdbus::ObjectPath const& obj) {
 }
 
 void BleListener::Impl::start_discovery() {
-    log("Starting bluetooth discovery");
+    spdlog::info("Starting bluetooth discovery");
 
     std::map<std::string, sdbus::Variant> dict;
     dict["DuplicateData"] = sdbus::Variant(true);
@@ -257,7 +257,7 @@ void BleListener::Impl::start_discovery() {
 }
 
 void BleListener::Impl::stop_discovery() {
-    log("Stopping bluetooth discovery");
+    spdlog::info("Stopping bluetooth discovery");
     if (should_discover) {
         should_discover = false;
         manager->callMethod("StopDiscovery")
@@ -270,7 +270,7 @@ void BleListener::Impl::stop() noexcept {
     try {
         stop_discovery();
     } catch (sdbus::Error const& e) {
-        log("Failed to stop discovery: ", e.getName(), " - ", e.getMessage());
+        spdlog::warn("Failed to stop discovery: ", e.getName(), " - ", e.getMessage());
     }
     connection->leaveEventLoop();
 }

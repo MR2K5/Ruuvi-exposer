@@ -42,7 +42,7 @@ std::vector<Diskstat> Diskstat::create() {
 
     auto f = open_diskstats();
     if (!f.has_value()) {
-        logging::log("Failed to open diskstats file");
+        spdlog::warn("Failed to open diskstats file");
         return {};
     }
     std::ifstream& ifs = *f;

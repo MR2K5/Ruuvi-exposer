@@ -112,7 +112,7 @@ private:
             std::stringstream ss;
             (ss << ... << as);
             errors += "\n" + ss.str();
-            logging::log(ss.rdbuf());
+            spdlog::warn(ss.rdbuf()->str());
         }
     }
 };

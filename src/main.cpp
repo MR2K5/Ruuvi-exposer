@@ -13,8 +13,7 @@
 #include <csignal>
 #include <future>
 #include <thread>
-
-using logging::log;
+#include <spdlog/sinks/systemd_sink.h>
 
 class Ruuvitag {
 public:
@@ -28,17 +27,17 @@ public:
         exposer.RegisterCollectable(rvexposer);
         exposer.RegisterCollectable(sysinfo);
         exposer.RegisterCollectable(diskstat);
-        log("Collectables registered");
+        spdlog::debug("Collectables registered");
     }
     Ruuvitag(Ruuvitag const&)            = delete;
     Ruuvitag& operator=(Ruuvitag const&) = delete;
 
     void start() {
-        log("Starting ble listener");
+        spdlog::info("Starting ble listener");
         listener.start();
     }
     void stop() {
-        log("Stopping ble listener");
+        spdlog::info("Stopping ble listener");
         listener.stop();
     }
 
@@ -49,7 +48,7 @@ public:
             //            log(data);
             rvexposer->update(data);
             if (data.contains_errors) {
-                log("Ruuvitag message errors from ", data.mac, ": ",
+                spdlog::info("Ruuvitag message errors from ", data.mac, ": ",
                     data.error_msg);
             }
         } else {
@@ -59,12 +58,12 @@ public:
 
     void print_debug() const noexcept {
         try {
-            log("\nBlacklisted macs: ");
+            spdlog::info("\nBlacklisted macs: ");
             for (auto const& mac: listener.get_blacklist()) {
-                log(mac);
+                spdlog::info(mac);
             }
 
-            log("");
+            spdlog::info("");
         } catch (...) {}
     }
 
@@ -91,8 +90,14 @@ extern "C" void sigusr_handler(int) {
     debug_print.clear(std::memory_order_relaxed);
 }
 
+void config_logger() {
+    spdlog::flush_on(spdlog::level::err);
+}
+
 int main() {
     try {
+        config_logger();
+
         Ruuvitag rv;
         stop_all.test_and_set();
         debug_print.test_and_set();
@@ -116,7 +121,7 @@ int main() {
                     rv.print_debug();
                 }
             }
-            log("Stopping...");
+            spdlog::info("Stopping...");
             rv.stop();
         });
 
@@ -129,10 +134,10 @@ int main() {
         stopper.join();
         runner.join();
     } catch (std::exception const& e) {
-        logging::log("Uncaught exception: ", e.what());
+        spdlog::error("Uncaught exception: ", e.what());
         stopped_with_error = true;
     } catch (...) {
-        logging::log("Uncaught exception of unknown type in main()");
+        spdlog::error("Uncaught exception of unknown type in main()");
         stopped_with_error = true;
     }
     return stopped_with_error ? EXIT_FAILURE : EXIT_SUCCESS;

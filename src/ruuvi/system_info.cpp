@@ -20,7 +20,7 @@ bool system_info::test_file(std::string const& name) {
         std::ifstream ifs(name);
         return ifs.good();
     } catch (std::exception const& e) {
-        log(e.what());
+        spdlog::info(e.what());
         return false;
     }
 }
@@ -77,7 +77,7 @@ double system_info::get_clock_hz() {
     static double const v = []() {
         long ticks_per_s = sysconf(_SC_CLK_TCK);
         if (ticks_per_s == -1) {
-            log("Failed to read _SC_CLK_TCK: ", std::strerror(errno));
+            spdlog::warn("Failed to read _SC_CLK_TCK: ", std::strerror(errno));
             return -1.0;
         }
         return 1.0 / ticks_per_s;
@@ -300,8 +300,8 @@ std::vector<thermal_sensor> const& system_info::find_sensors() {
                 }
             }
         }
-        log("Found ", sensors.size(), " sensors");
-        for (auto& s : sensors) log(s.type);
+        spdlog::info("Found ", sensors.size(), " sensors");
+        for (auto& s : sensors) spdlog::debug(s.type);
         return sensors;
     }();
 
