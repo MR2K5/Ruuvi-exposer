@@ -124,9 +124,10 @@ int main(int argc, char** argv) {
     }
 
     try {
-        config_logger(systemd, debug, trace);
+        config_logger(systemd.Get(), debug.Get(), trace.Get());
 
-        Ruuvitag rv(port, interface.Get());
+        spdlog::debug("Starting on port {}", port.Get());
+        Ruuvitag rv(port.Get(), interface.Get());
         stop_all.test_and_set();
         debug_print.test_and_set();
 
