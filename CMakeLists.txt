@@ -78,8 +78,8 @@ target_link_libraries(options INTERFACE spdlog::spdlog $<$<BOOL:${ENABLE_SYSTEMD
 
 if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
     message(STATUS "Using gcc or clang, adding warnings")
-    target_compile_options(options INTERFACE -Wall -Wextra -pedantic $<$<CONFIG:Release>: -march=native>)
-    target_link_options(options INTERFACE -Wall -Wextra -pedantic $<$<CONFIG:Release>: -march=native>)
+    target_compile_options(options INTERFACE -Wall -Wextra -pedantic)
+    target_link_options(options INTERFACE -Wall -Wextra -pedantic)
     if(USE_SANITIZER)
         message(STATUS "Using sanitizer ${USE_SANITIZER}")
         target_link_options(options INTERFACE -fsanitize=${USE_SANITIZER})
